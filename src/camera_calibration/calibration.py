@@ -18,9 +18,9 @@ class CameraCalibrator:
         self.rvecs = None
         self.tvecs = None
 
-    def collect_image_points(self):
+    def collect_image_points(self, print_images=False):
         images = glob.glob(os.path.join(self.images_dir, '*.jpeg'))
-        print(f"Found {len(images)} images in {self.images_dir}.")
+        #print(f"Found {len(images)} images in {self.images_dir}.")
         im_count = 0
         for fname in images:
             img = cv.imread(fname)
@@ -32,18 +32,21 @@ class CameraCalibrator:
                 corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), self.criteria)
                 self.imgpoints.append(corners2)
                 cv.drawChessboardCorners(img, self.chessboard_size, corners2, ret)
-                #cv.imshow('img', img)
-                #cv.waitKey(1)
-        #print(f"Successfully processed {im_count} images.")
+                if print_images:
+                    cv.imshow('img', img)
+                    cv.waitKey(50)
         cv.destroyAllWindows()
 
-    def calibrate(self, image_shape):
+    def calibrate(self, print_vals=False):
+        # Use fixed image shape (width=768, height=480)
+        image_shape = (768, 480)
         ret, self.mtx, self.dist, self.rvecs, self.tvecs = cv.calibrateCamera(
             self.objpoints, self.imgpoints, image_shape, None, None)
-        print("Camera matrix:")
-        print(self.mtx)
-        print("Distortion coefficients:")
-        print(self.dist)
+        if print_vals:
+            print("Camera matrix:")
+            print(self.mtx)
+            print("Distortion coefficients:")
+            print(self.dist)
         return ret
 
     def undistort_and_crop(self, image_path, output_path='calibresult.png'):
@@ -57,23 +60,13 @@ class CameraCalibrator:
         cv.imwrite(output_path, dst_cropped)
         #print(f"Saved undistorted and cropped image to {output_path}")
 
-    def compute_reprojection_error(self):
+    def compute_reprojection_error(self, print_vals=False):
         mean_error = 0
         for i in range(len(self.objpoints)):
             imgpoints2, _ = cv.projectPoints(self.objpoints[i], self.rvecs[i], self.tvecs[i], self.mtx, self.dist)
             error = cv.norm(self.imgpoints[i], imgpoints2, cv.NORM_L2)/len(imgpoints2)
             mean_error += error
         total_error = mean_error / len(self.objpoints)
-        #print(f"Total reprojection error: {total_error}")
+        if print_vals:
+            print(f"Total reprojection error: {total_error}")
         return total_error
-
-if __name__ == "__main__":
-    calibrator = CameraCalibrator(images_dir="/home/nikolai/Uni/Master_project/src/camera_calibration/Images", chessboard_size=(8, 11), crop_percent=0.125)
-    calibrator.collect_image_points()
-    # Use the shape of the first image for calibration
-    first_image = glob.glob(os.path.join(calibrator.images_dir, '*.jpeg'))[0]
-    img = cv.imread(first_image)
-    gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-    calibrator.calibrate(gray.shape[::-1])
-    calibrator.undistort_and_crop(os.path.join(calibrator.images_dir, 'frame_00570.jpeg'))
-    calibrator.compute_reprojection_error()
