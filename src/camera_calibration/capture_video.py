@@ -54,7 +54,3 @@ class VideoUndistorter:
                     continue
         finally:
             self.pipeline.set_state(Gst.State.NULL)
-
-if __name__ == "__main__":
-    undistorter = VideoUndistorter(calib_file='calib_data.npz', save_video=False)
-    undistorter.run()
