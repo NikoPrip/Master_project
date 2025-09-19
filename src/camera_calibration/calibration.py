@@ -47,6 +47,7 @@ class CameraCalibrator:
             print(self.mtx)
             print("Distortion coefficients:")
             print(self.dist)
+        np.savez(os.path.join(os.getcwd(), 'calib_data.npz'), mtx=self.mtx, dist=self.dist)
         return ret
 
     def undistort_and_crop(self, image_path, output_path='calibresult.png'):

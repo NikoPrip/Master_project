@@ -1,0 +1,42 @@
+# Python bytecode and cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# VS Code settings
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+.venv/
+env/
+venv/
+
+# Compiled libraries
+*.so
+*.dll
+*.dylib
+
+# GStreamer cache
+.cache/
+
+# Calibration and output files
+*.npz
+*.npy
+output.mp4
+calibresult.png
+
+# Logs
+*.log
+
+# Test and temp files
+*.tmp
+*.bak
+*.swp
+
+# Config files
+*.ini
