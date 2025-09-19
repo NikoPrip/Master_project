@@ -25,7 +25,6 @@ venv/
 .cache/
 
 # Calibration and output files
-*.npz
 *.npy
 output.mp4
 calibresult.png
