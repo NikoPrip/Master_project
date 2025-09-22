@@ -21,7 +21,8 @@ class VideoUndistorter:
         # Choose a dictionary, e.g., 5x5_250
         self.aruco_dict = aruco.getPredefinedDictionary(self.marker_type)
         self.aruco_params = aruco.DetectorParameters()
-        self.aruco_center = 0
+        self.aruco_center_90 = 0
+        self.aruco_center_91 = 0
 
     def _create_pipeline_90(self):
         if self.save_video:
@@ -100,11 +101,11 @@ class VideoUndistorter:
                         aruco.drawDetectedMarkers(undistorted_90, corners_90, ids_90)
                         for marker_corners, marker_id in zip(corners_90, ids_90):
                             # marker_corners shape: (1, 4, 2)
-                            self.aruco_center = marker_corners[0].mean(axis=0).astype(int)
+                            self.aruco_center_90 = marker_corners[0].mean(axis=0).astype(int)
                             print("Corners:", corners_90)
-                            print(f"Marker ID {marker_id[0]} center: ({self.aruco_center[0]}, {self.aruco_center[1]})")
+                            print(f"Marker ID {marker_id[0]} center: ({self.aruco_center_90[0]}, {self.aruco_center_90[1]})")
                             # Optionally, draw the center on the image
-                            cv2.circle(undistorted_90, tuple(self.aruco_center), 5, (0, 0, 255), -1)
+                            cv2.circle(undistorted_90, tuple(self.aruco_center_90), 5, (0, 0, 255), -1)
                             rvec, tvec, _ = aruco.estimatePoseSingleMarkers(
                                 marker_corners, marker_size, self.mtx, self.dist
                             )
@@ -113,11 +114,11 @@ class VideoUndistorter:
                         aruco.drawDetectedMarkers(undistorted_91, corners_91, ids_91)
                         for marker_corners, marker_id in zip(corners_91, ids_91):
                             # marker_corners shape: (1, 4, 2)
-                            self.aruco_center = marker_corners[0].mean(axis=0).astype(int)
+                            self.aruco_center_91 = marker_corners[0].mean(axis=0).astype(int)
                             print("Corners:", corners_91)
-                            print(f"Marker ID {marker_id[0]} center: ({self.aruco_center[0]}, {self.aruco_center[1]})")
+                            print(f"Marker ID {marker_id[0]} center: ({self.aruco_center_91[0]}, {self.aruco_center_91[1]})")
                             # Optionally, draw the center on the image
-                            cv2.circle(undistorted_91, tuple(self.aruco_center), 5, (0, 0, 255), -1)
+                            cv2.circle(undistorted_91, tuple(self.aruco_center_91), 5, (0, 0, 255), -1)
                             rvec, tvec, _ = aruco.estimatePoseSingleMarkers(
                                 marker_corners, marker_size, self.mtx, self.dist
                             )
