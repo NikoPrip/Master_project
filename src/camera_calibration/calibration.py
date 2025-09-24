@@ -20,7 +20,7 @@ class CameraCalibrator:
 
     def collect_image_points(self, print_images=False):
         images = glob.glob(os.path.join(self.images_dir, '*.jpeg'))
-        #print(f"Found {len(images)} images in {self.images_dir}.")
+        print(f"Found {len(images)} images in {self.images_dir}.")
         im_count = 0
         for fname in images:
             img = cv.imread(fname)
@@ -47,7 +47,10 @@ class CameraCalibrator:
             print(self.mtx)
             print("Distortion coefficients:")
             print(self.dist)
-        np.savez(os.path.join(os.getcwd(), 'calib_data.npz'), mtx=self.mtx, dist=self.dist)
+        if self.images_dir[-1] == '0':
+            np.savez(os.path.join(os.getcwd(), 'calib_data_90.npz'), mtx=self.mtx, dist=self.dist)
+        else:
+            np.savez(os.path.join(os.getcwd(), 'calib_data_91.npz'), mtx=self.mtx, dist=self.dist)
         return ret
 
     def undistort_and_crop(self, image_path, output_path='calibresult.png'):
