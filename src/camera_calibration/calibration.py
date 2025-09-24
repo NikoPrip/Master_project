@@ -17,6 +17,7 @@ class CameraCalibrator:
         self.dist = None
         self.rvecs = None
         self.tvecs = None
+        self.rms_error = None
 
     def collect_image_points(self, print_images=False):
         images = glob.glob(os.path.join(self.images_dir, '*.jpeg'))
@@ -35,23 +36,58 @@ class CameraCalibrator:
                 if print_images:
                     cv.imshow('img', img)
                     cv.waitKey(50)
+        print(f"Successfully processed {im_count} images with detected chessboards.")
         cv.destroyAllWindows()
 
     def calibrate(self, print_vals=False):
+        if len(self.objpoints) == 0:
+            print("ERROR: No chessboard corners found! Run collect_image_points() first.")
+            return False
+            
         # Use fixed image shape (width=768, height=480)
         image_shape = (768, 480)
         ret, self.mtx, self.dist, self.rvecs, self.tvecs = cv.calibrateCamera(
             self.objpoints, self.imgpoints, image_shape, None, None)
+        
+        # Store the RMS error
+        self.rms_error = ret
+        
         if print_vals:
+            print(f"RMS error: {self.rms_error:.6f}")
             print("Camera matrix:")
             print(self.mtx)
             print("Distortion coefficients:")
             print(self.dist)
+            
+            # Print calibration quality assessment
+            if self.rms_error < 0.5:
+                print("✓ Excellent calibration quality")
+            elif self.rms_error < 1.0:
+                print("✓ Good calibration quality")
+            elif self.rms_error < 2.0:
+                print("⚠ Acceptable calibration quality")
+            else:
+                print("✗ Poor calibration quality - consider recapturing images")
+        
+        # Determine output file based on directory name
         if self.images_dir[-1] == '0':
-            np.savez(os.path.join(os.getcwd(), 'calib_data_90.npz'), mtx=self.mtx, dist=self.dist)
+            output_file = os.path.join(os.getcwd(), 'src/camera_calibration/calib_files/calib_data_90.npz')
         else:
-            np.savez(os.path.join(os.getcwd(), 'calib_data_91.npz'), mtx=self.mtx, dist=self.dist)
-        return ret
+            output_file = os.path.join(os.getcwd(), 'src/camera_calibration/calib_files/calib_data_91.npz')
+        
+        # Create directory if it doesn't exist
+        os.makedirs(os.path.dirname(output_file), exist_ok=True)
+        
+        # Save calibration data including RMS error
+        np.savez(output_file, 
+                 mtx=self.mtx, 
+                 dist=self.dist, 
+                 rms_error=self.rms_error,
+                 rvecs=self.rvecs,
+                 tvecs=self.tvecs)
+        
+        print(f"Calibration data saved to: {output_file}")
+        return True
 
     def undistort_and_crop(self, image_path, output_path='calibresult.png'):
         img = cv.imread(image_path)
@@ -74,3 +110,45 @@ class CameraCalibrator:
         if print_vals:
             print(f"Total reprojection error: {total_error}")
         return total_error
+
+    def calibrate_both_cameras(self, images_dir_90, images_dir_91, print_vals=False):
+        """Calibrate both cameras and return success status"""
+        print("=== CALIBRATING CAMERA 90 ===")
+        self.images_dir = images_dir_90
+        self.objpoints = []  # Reset
+        self.imgpoints = []  # Reset
+        self.collect_image_points(print_images=False)
+        success_90 = self.calibrate(print_vals=print_vals)
+        rms_90 = self.rms_error if success_90 else None
+        
+        print("\n=== CALIBRATING CAMERA 91 ===")
+        self.images_dir = images_dir_91
+        self.objpoints = []  # Reset
+        self.imgpoints = []  # Reset
+        self.collect_image_points(print_images=False)
+        success_91 = self.calibrate(print_vals=print_vals)
+        rms_91 = self.rms_error if success_91 else None
+        
+        print(f"\n=== CALIBRATION SUMMARY ===")
+        print(f"Camera 90 success: {success_90}")
+        print(f"Camera 91 success: {success_91}")
+        
+        if success_90 and success_91:
+            print("Both cameras calibrated successfully!")
+            print(f"Camera 90 RMS: {rms_90:.6f}")
+            print(f"Camera 91 RMS: {rms_91:.6f}")
+            
+            # Quality assessment
+            if rms_90 > 1.0 or rms_91 > 1.0:
+                print("⚠ WARNING: One or both cameras have high RMS errors")
+                print("Consider:")
+                print("- Using more/better images")
+                print("- Ensuring chessboard is flat and well-lit")
+                print("- Checking for motion blur")
+            else:
+                print("✓ Both cameras have good calibration quality")
+                
+            return True, rms_90, rms_91
+        else:
+            print("❌ One or both calibrations failed!")
+            return False, rms_90, rms_91
