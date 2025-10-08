@@ -38,4 +38,7 @@ calibresult.png
 *.swp
 
 # Config files
-*.ini
+*.ini*.mp4
+src/camera_calibration/camera_calib_video/*.mp4
+src/camera_calibration/stereo_calib_video/*.mp4
+OCT_v211_unix

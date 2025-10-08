@@ -1,7 +1,0 @@
-env/
-.idea/
-output/
-!output/testdata/
-input/
-!input/testdata/
-.obsidian/

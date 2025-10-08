@@ -1,154 +1,238 @@
-import numpy as np
 import cv2 as cv
+import cv2.aruco as aruco
 import glob
 import os
+import numpy as np
 
-class CameraCalibrator:
-    def __init__(self, images_dir='Images', chessboard_size=(8, 11), crop_percent=0.125):
-        self.images_dir = images_dir
-        self.chessboard_size = chessboard_size
-        self.crop_percent = crop_percent
+class Calibrator:
+    def __init__(self, image_dir, charuco_board_size=(12, 9), marker_type=aruco.DICT_5X5_250, square_size=0.06, marker_size=0.045):
+        self.image_dir = image_dir
+        self.aruco_dict = aruco.getPredefinedDictionary(marker_type)
+        self.charuco_board = aruco.CharucoBoard(
+            charuco_board_size,
+            square_size, 
+            marker_size, 
+            self.aruco_dict
+        )
         self.criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
-        self.objp = np.zeros((chessboard_size[0]*chessboard_size[1], 3), np.float32)
-        self.objp[:, :2] = np.mgrid[0:chessboard_size[0], 0:chessboard_size[1]].T.reshape(-1, 2)
-        self.objpoints = []
-        self.imgpoints = []
+        self.charuco_corners = []  # Store charuco corners
+        self.charuco_ids = []     # Store charuco IDs
         self.mtx = None
         self.dist = None
         self.rvecs = None
         self.tvecs = None
         self.rms_error = None
 
-    def collect_image_points(self, print_images=False):
-        images = glob.glob(os.path.join(self.images_dir, '*.jpeg'))
-        print(f"Found {len(images)} images in {self.images_dir}.")
-        im_count = 0
-        for fname in images:
+    def detect_images(self):
+        images = 0
+        markers_found = 0
+        no_arucos = 0
+        insufficient_corners = 0
+        
+        for fname in glob.glob(os.path.join(self.image_dir, '*.jpeg')):
+            images += 1
             img = cv.imread(fname)
             gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
-            ret, corners = cv.findChessboardCorners(gray, self.chessboard_size, None)
-            if ret:
-                im_count += 1
-                self.objpoints.append(self.objp)
-                corners2 = cv.cornerSubPix(gray, corners, (11, 11), (-1, -1), self.criteria)
-                self.imgpoints.append(corners2)
-                cv.drawChessboardCorners(img, self.chessboard_size, corners2, ret)
-                if print_images:
-                    cv.imshow('img', img)
-                    cv.waitKey(50)
-        print(f"Successfully processed {im_count} images with detected chessboards.")
-        cv.destroyAllWindows()
+            corners, ids, _ = aruco.detectMarkers(gray, self.aruco_dict)
+            if len(corners) > 0:
+                markers_found += 1
+                _, charuco_corners, charuco_ids = aruco.interpolateCornersCharuco(corners, ids, gray, self.charuco_board)
+                if charuco_corners is not None and charuco_ids is not None and len(charuco_corners) >= 30:
+                    self.charuco_corners.append(charuco_corners)
+                    self.charuco_ids.append(charuco_ids)
+                elif charuco_corners is not None and charuco_ids is not None:
+                    insufficient_corners += 1
+                else:
+                    no_arucos += 1
 
-    def calibrate(self, print_vals=False):
-        if len(self.objpoints) == 0:
-            print("ERROR: No chessboard corners found! Run collect_image_points() first.")
-            return False
-            
-        # Use fixed image shape (width=768, height=480)
-        image_shape = (768, 480)
-        ret, self.mtx, self.dist, self.rvecs, self.tvecs = cv.calibrateCamera(
-            self.objpoints, self.imgpoints, image_shape, None, None)
+        print(f"Total images processed: {images}")
+        print(f"Images with detected markers: {markers_found}")
+        print(f"Images with valid ChArUco corners (>=30): {len(self.charuco_corners)}")
+        print(f"Images with insufficient corners (<30): {insufficient_corners}")
+        print(f"Images without valid ChArUco corners: {no_arucos}")
+
+    def calibrate_camera(self, file_name=None):
+        if len(self.charuco_corners) == 0:
+            print("No valid ChArUco corners found for calibration!")
+            return
         
-        # Store the RMS error
+        print(f"Starting calibration with {len(self.charuco_corners)} images...")
+        
+        # Get image size from the first image
+        first_image = glob.glob(os.path.join(self.image_dir, '*.jpeg'))[0]
+        img = cv.imread(first_image)
+        image_size = (img.shape[1], img.shape[0])  # (width, height)
+        print(f"Using image size: {image_size}")
+        
+        # Calibrate camera using ChArUco corners
+        ret, mtx, dist, rvecs, tvecs = aruco.calibrateCameraCharuco(
+            self.charuco_corners,
+            self.charuco_ids,
+            self.charuco_board,
+            image_size,
+            None,
+            None
+        )
+        self.mtx = mtx
+        self.dist = dist
+        self.rvecs = rvecs
+        self.tvecs = tvecs
         self.rms_error = ret
         
-        if print_vals:
-            print(f"RMS error: {self.rms_error:.6f}")
-            print("Camera matrix:")
-            print(self.mtx)
-            print("Distortion coefficients:")
-            print(self.dist)
-            
-            # Print calibration quality assessment
-            if self.rms_error < 0.5:
-                print("✓ Excellent calibration quality")
-            elif self.rms_error < 1.0:
-                print("✓ Good calibration quality")
-            elif self.rms_error < 2.0:
-                print("⚠ Acceptable calibration quality")
-            else:
-                print("✗ Poor calibration quality - consider recapturing images")
+        print(f"Calibration successful!")
+        print(f"Calibration RMS error: {ret:.6f}")
+        print("Camera matrix:")
+        print(mtx)
+        print("Distortion coefficients:")
+        print(dist)
         
-        # Determine output file based on directory name
-        if self.images_dir[-1] == '0':
-            output_file = os.path.join(os.getcwd(), 'src/camera_calibration/calib_files/calib_data_90.npz')
-        else:
-            output_file = os.path.join(os.getcwd(), 'src/camera_calibration/calib_files/calib_data_91.npz')
-        
-        # Create directory if it doesn't exist
-        os.makedirs(os.path.dirname(output_file), exist_ok=True)
-        
-        # Save calibration data including RMS error
+        return ret, mtx, dist, rvecs, tvecs
+    
+    def save_calibration(self, output_file=None):
         np.savez(output_file, 
                  mtx=self.mtx, 
                  dist=self.dist, 
                  rms_error=self.rms_error,
                  rvecs=self.rvecs,
                  tvecs=self.tvecs)
-        
-        print(f"Calibration data saved to: {output_file}")
-        return True
+        print(f"Calibration data saved to {output_file}")
 
-    def undistort_and_crop(self, image_path, output_path='calibresult.png'):
-        img = cv.imread(image_path)
-        h, w = img.shape[:2]
-        newcameramtx, roi = cv.getOptimalNewCameraMatrix(self.mtx, self.dist, (w, h), 1, (w, h))
-        dst = cv.undistort(img, self.mtx, self.dist, None, newcameramtx)
-        crop_x = int(w * self.crop_percent)
-        crop_y = int(h * self.crop_percent)
-        dst_cropped = dst[crop_y:h-crop_y, crop_x:w-crop_x]
-        cv.imwrite(output_path, dst_cropped)
-        #print(f"Saved undistorted and cropped image to {output_path}")
+class StereoCalibrator:
+    def __init__(self, left_calib_data, right_calib_data, image_size, charuco_board_size=(12, 9), marker_type=aruco.DICT_5X5_250, square_size=0.06, marker_size=0.045):
+        self.left_mtx = left_calib_data['mtx']
+        self.left_dist = left_calib_data['dist']
+        self.right_mtx = right_calib_data['mtx']
+        self.right_dist = right_calib_data['dist']
+        self.image_size = image_size
+        self.aruco_dict = aruco.getPredefinedDictionary(marker_type)
+        self.charuco_board = aruco.CharucoBoard(
+            charuco_board_size,
+            square_size,
+            marker_size,
+            self.aruco_dict
+        )
+        self.objpoints = []
+        self.imgpoints_left = []
+        self.imgpoints_right = []
 
-    def compute_reprojection_error(self, print_vals=False):
-        mean_error = 0
-        for i in range(len(self.objpoints)):
-            imgpoints2, _ = cv.projectPoints(self.objpoints[i], self.rvecs[i], self.tvecs[i], self.mtx, self.dist)
-            error = cv.norm(self.imgpoints[i], imgpoints2, cv.NORM_L2)/len(imgpoints2)
-            mean_error += error
-        total_error = mean_error / len(self.objpoints)
-        if print_vals:
-            print(f"Total reprojection error: {total_error}")
-        return total_error
+    def detect_stereo_corners(self, left_image_dir, right_image_dir):
+        left_images = sorted(glob.glob(os.path.join(left_image_dir, '*.jpeg')))
+        right_images = sorted(glob.glob(os.path.join(right_image_dir, '*.jpeg')))
+        for left_img_path, right_img_path in zip(left_images, right_images):
+            img_left = cv.imread(left_img_path)
+            img_right = cv.imread(right_img_path)
+            gray_left = cv.cvtColor(img_left, cv.COLOR_BGR2GRAY)
+            gray_right = cv.cvtColor(img_right, cv.COLOR_BGR2GRAY)
 
-    def calibrate_both_cameras(self, images_dir_90, images_dir_91, print_vals=False):
-        """Calibrate both cameras and return success status"""
-        print("=== CALIBRATING CAMERA 90 ===")
-        self.images_dir = images_dir_90
-        self.objpoints = []  # Reset
-        self.imgpoints = []  # Reset
-        self.collect_image_points(print_images=False)
-        success_90 = self.calibrate(print_vals=print_vals)
-        rms_90 = self.rms_error if success_90 else None
-        
-        print("\n=== CALIBRATING CAMERA 91 ===")
-        self.images_dir = images_dir_91
-        self.objpoints = []  # Reset
-        self.imgpoints = []  # Reset
-        self.collect_image_points(print_images=False)
-        success_91 = self.calibrate(print_vals=print_vals)
-        rms_91 = self.rms_error if success_91 else None
-        
-        print(f"\n=== CALIBRATION SUMMARY ===")
-        print(f"Camera 90 success: {success_90}")
-        print(f"Camera 91 success: {success_91}")
-        
-        if success_90 and success_91:
-            print("Both cameras calibrated successfully!")
-            print(f"Camera 90 RMS: {rms_90:.6f}")
-            print(f"Camera 91 RMS: {rms_91:.6f}")
-            
-            # Quality assessment
-            if rms_90 > 1.0 or rms_91 > 1.0:
-                print("⚠ WARNING: One or both cameras have high RMS errors")
-                print("Consider:")
-                print("- Using more/better images")
-                print("- Ensuring chessboard is flat and well-lit")
-                print("- Checking for motion blur")
-            else:
-                print("✓ Both cameras have good calibration quality")
-                
-            return True, rms_90, rms_91
-        else:
-            print("❌ One or both calibrations failed!")
-            return False, rms_90, rms_91
+            corners_left, ids_left, _ = aruco.detectMarkers(gray_left, self.aruco_dict)
+            corners_right, ids_right, _ = aruco.detectMarkers(gray_right, self.aruco_dict)
+
+            if len(corners_left) > 0 and len(corners_right) > 0:
+                _, charuco_corners_left, charuco_ids_left = aruco.interpolateCornersCharuco(corners_left, ids_left, gray_left, self.charuco_board)
+                _, charuco_corners_right, charuco_ids_right = aruco.interpolateCornersCharuco(corners_right, ids_right, gray_right, self.charuco_board)
+
+                if (charuco_corners_left is not None and charuco_ids_left is not None and
+                    charuco_corners_right is not None and charuco_ids_right is not None and
+                    len(charuco_corners_left) >= 30 and len(charuco_corners_right) >= 30):
+
+                    # Find common IDs
+                    ids_left_set = set(charuco_ids_left.flatten())
+                    ids_right_set = set(charuco_ids_right.flatten())
+                    common_ids = np.array(list(ids_left_set & ids_right_set))
+
+                    if len(common_ids) >= 10:
+                        objp = []
+                        imgp_left = []
+                        imgp_right = []
+                        
+                        # Get all chessboard corners first
+                        chessboard_corners = self.charuco_board.getChessboardCorners()
+                        
+                        for cid in common_ids:
+                            idx_left = np.where(charuco_ids_left == cid)[0][0]
+                            idx_right = np.where(charuco_ids_right == cid)[0][0]
+                            objp.append(chessboard_corners[cid])  # Index the returned array
+                            imgp_left.append(charuco_corners_left[idx_left][0])
+                            imgp_right.append(charuco_corners_right[idx_right][0])
+                        self.objpoints.append(np.array(objp, dtype=np.float32))
+                        self.imgpoints_left.append(np.array(imgp_left, dtype=np.float32))
+                        self.imgpoints_right.append(np.array(imgp_right, dtype=np.float32))
+
+    def stereo_calibrate(self):
+        flags = cv.CALIB_FIX_INTRINSIC
+        criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 100, 1e-5)
+        retval, left_mtx, left_dist, right_mtx, right_dist, R, T, E, F = cv.stereoCalibrate(
+            self.objpoints,
+            self.imgpoints_left,
+            self.imgpoints_right,
+            self.left_mtx,
+            self.left_dist,
+            self.right_mtx,
+            self.right_dist,
+            self.image_size,
+            criteria=criteria,
+            flags=flags
+        )
+        self.R = R
+        self.T = T
+        self.E = E
+        self.F = F
+        self.stereo_error = retval
+        print(f"Stereo calibration RMS error: {retval:.6f}")
+        print("Rotation matrix (R):")
+        print(R)
+        print("Translation vector (T):")
+        print(T)
+        return retval, R, T, E, F
+
+    def save_stereo_calibration(self, output_file):
+        np.savez(output_file,
+                 left_mtx=self.left_mtx,
+                 left_dist=self.left_dist,
+                 right_mtx=self.right_mtx,
+                 right_dist=self.right_dist,
+                 R=self.R,
+                 T=self.T,
+                 E=self.E,
+                 F=self.F,
+                 stereo_error=self.stereo_error)
+        print(f"Stereo calibration data saved to {output_file}")
+
+if __name__ == "__main__":
+    camera_calib = False
+    stereo_calib = True
+
+    detector_left = Calibrator(
+        image_dir='src/camera_calibration/Images_cam_left',
+        charuco_board_size=(12, 9),
+        marker_type=aruco.DICT_5X5_250
+    )
+    detector_right = Calibrator(
+        image_dir='src/camera_calibration/Images_cam_right',
+        charuco_board_size=(12, 9),
+        marker_type=aruco.DICT_5X5_250
+    )
+    if camera_calib:
+        detector_left.detect_images()
+        calibration_results_left = detector_left.calibrate_camera()
+        detector_right.detect_images()
+        calibration_results_right = detector_right.calibrate_camera()
+        detector_left.save_calibration('src/camera_calibration/calib_files/calib_data_left.npz')
+        detector_right.save_calibration('src/camera_calibration/calib_files/calib_data_right.npz')
+    if stereo_calib:
+        left_data = np.load('src/camera_calibration/calib_files/calib_data_left.npz')
+        right_data = np.load('src/camera_calibration/calib_files/calib_data_right.npz')
+        image_size = (1280, 800)  # Replace with actual image size used during calibration
+        stereo_calibrator = StereoCalibrator(
+            left_calib_data=left_data,
+            right_calib_data=right_data,
+            image_size=image_size,
+            charuco_board_size=(12, 9),
+            marker_type=aruco.DICT_5X5_250
+        )
+        stereo_calibrator.detect_stereo_corners(
+            left_image_dir='src/camera_calibration/Stereo_Images_left',
+            right_image_dir='src/camera_calibration/Stereo_Images_right'
+        )
+        stereo_calibrator.stereo_calibrate()
+        stereo_calibrator.save_stereo_calibration('src/camera_calibration/calib_files/stereo_calib_data.npz')
