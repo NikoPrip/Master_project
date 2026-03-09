@@ -69,7 +69,7 @@ class VideoProcessor:
                 frame_filename = os.path.join(self.output_dir, f"frame_{saved_count:04d}.jpeg")
                 cv.imwrite(frame_filename, frame)
                 saved_count += 1
-                print(f"Saved frame {frame_count} with ChArUco board detected")
+                #print(f"Saved frame {frame_count} with ChArUco board detected")
             
             frame_count += 1
 
@@ -81,39 +81,39 @@ if __name__ == "__main__":
     stereo_calib = True
 
     if camera_calib:
-        video_path_right = 'src/camera_calibration/camera_calib_video/input_video_right.mp4'
-        output_dir_right = 'src/camera_calibration/Images_cam_right'
-        video_path_left = 'src/camera_calibration/camera_calib_video/input_video_left.mp4'
-        output_dir_left = 'src/camera_calibration/Images_cam_left'
+        video_path_91 = 'src/camera_calibration/camera_calib_video/input_video_91.mp4'
+        output_dir_91 = 'src/camera_calibration/Images_cam_91'
+        video_path_90 = 'src/camera_calibration/camera_calib_video/input_video_90.mp4'
+        output_dir_90 = 'src/camera_calibration/Images_cam_90'
 
-        processor_right = VideoProcessor(video_path_right, output_dir_right, 
+        processor_91 = VideoProcessor(video_path_91, output_dir_91, 
                                 aruco_dict_type=cv.aruco.DICT_5X5_250,
                                 board_size=(12, 9),
                                 square_length=0.06,
                                 marker_length=0.045)
-        processor_left = VideoProcessor(video_path_left, output_dir_left, 
+        processor_90 = VideoProcessor(video_path_90, output_dir_90, 
                                 aruco_dict_type=cv.aruco.DICT_5X5_250,
                                 board_size=(12, 9),
                                 square_length=0.06,
                                 marker_length=0.045)
-        processor_right.extract_frames()
-        processor_left.extract_frames()
+        processor_91.extract_frames()
+        processor_90.extract_frames()
 
     if stereo_calib:
-        video_path_right = 'src/camera_calibration/stereo_calib_video/cam_right.mp4'
-        output_dir_right = 'src/camera_calibration/Stereo_Images_right'
-        video_path_left = 'src/camera_calibration/stereo_calib_video/cam_left.mp4'
-        output_dir_left = 'src/camera_calibration/Stereo_Images_left'
+        video_path_91 = 'src/camera_calibration/stereo_calib_video/cam_91.mp4'
+        output_dir_91 = 'src/camera_calibration/Stereo_Images_91'
+        video_path_90 = 'src/camera_calibration/stereo_calib_video/cam_90.mp4'
+        output_dir_90 = 'src/camera_calibration/Stereo_Images_90'
 
-        processor_right = VideoProcessor(video_path_right, output_dir_right, 
+        processor_91 = VideoProcessor(video_path_91, output_dir_91, 
                                 aruco_dict_type=cv.aruco.DICT_5X5_250,
                                 board_size=(12, 9),
                                 square_length=0.06,
                                 marker_length=0.045)
-        processor_left = VideoProcessor(video_path_left, output_dir_left, 
+        processor_90 = VideoProcessor(video_path_90, output_dir_90, 
                                 aruco_dict_type=cv.aruco.DICT_5X5_250,
                                 board_size=(12, 9),
                                 square_length=0.06,
                                 marker_length=0.045)
-        processor_right.extract_frames()
-        processor_left.extract_frames()
+        processor_91.extract_frames()
+        processor_90.extract_frames()

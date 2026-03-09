@@ -26,8 +26,15 @@ venv/
 
 # Calibration and output files
 *.npy
+*.jpeg
+*.jpg
+*.png
+*.PNG
 output.mp4
 calibresult.png
+
+# Data files
+*.csv
 
 # Logs
 *.log
@@ -39,6 +46,7 @@ calibresult.png
 
 # Config files
 *.ini*.mp4
+*.mp4
 src/camera_calibration/camera_calib_video/*.mp4
 src/camera_calibration/stereo_calib_video/*.mp4
 OCT_v211_unix

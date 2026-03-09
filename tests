@@ -1,0 +1,9 @@
+- Varying amount of n-fold markers (Simulation + Optitrack)
+- Aruco vs Hybrid vs Nfold (Simulation and optitrack)
+- Computervision solution vs GNSS vs GNSS + Laser precision (On machine)
+- Varying amount of cameras (Simulation adn on machine)
+- 
+
+
+
+Try to test with a non-clean marker, for realistic estimate.
