@@ -102,7 +102,7 @@ class HybridPoseTracker:
                 'cap': cv2.VideoCapture(str(path)),
                 'color': color,
                 'last_pose': None,
-                'kalman': PoseKalmanFilter(dt=1/30.0, process_noise=0.1, measurement_noise=0.3),
+                'kalman': PoseKalmanFilter(dt=1/30.0, process_noise=100.0, measurement_noise=1.0, gate_trans_mm=300.0, gate_rot_deg=30.0),
                 'frames_without_match': 0
             })
         return cameras

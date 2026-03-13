@@ -37,13 +37,13 @@ aruco-optitrack-3:
 
 # ── nfold optitrack ───────────────────────────────────────────────────────────
 nfold-optitrack-1:
-	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Nfold_1.mp4
+	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Hybrid_1.mp4
 
 nfold-optitrack-2:
-	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Nfold_2.mp4
+	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Hybrid_2.mp4
 
 nfold-optitrack-3:
-	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Nfold_3.mp4
+	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Hybrid_3.mp4
 
 # ── hybrid optitrack ──────────────────────────────────────────────────────────
 hybrid-optitrack-1:
@@ -85,13 +85,13 @@ hybrid-optitrack-3-csv: | $(RESULTS)
 	$(PYTHON) $(TRACKER) --mode hybrid --calib phone --config optitrack --video90 $(OPTITRACK)/Hybrid_3.mp4 --output $(RESULTS)/hybrid_3.csv
 
 nfold-optitrack-1-csv: | $(RESULTS)
-	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Nfold_1.mp4 --output $(RESULTS)/nfold_1.csv
+	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Hybrid_1.mp4 --output $(RESULTS)/nfold_1.csv
 
 nfold-optitrack-2-csv: | $(RESULTS)
-	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Nfold_2.mp4 --output $(RESULTS)/nfold_2.csv
+	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Hybrid_2.mp4 --output $(RESULTS)/nfold_2.csv
 
 nfold-optitrack-3-csv: | $(RESULTS)
-	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Nfold_3.mp4 --output $(RESULTS)/nfold_3.csv
+	$(PYTHON) $(TRACKER) --mode nfold --calib phone --config optitrack --video90 $(OPTITRACK)/Hybrid_3.mp4 --output $(RESULTS)/nfold_3.csv
 
 log-all: aruco-optitrack-1-csv aruco-optitrack-2-csv aruco-optitrack-3-csv \
          hybrid-optitrack-1-csv hybrid-optitrack-2-csv hybrid-optitrack-3-csv \

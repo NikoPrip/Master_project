@@ -109,8 +109,8 @@ class ArucoPoseTracker:
                 'dist': data['dist'],
                 'cap': cv2.VideoCapture(str(video_90_path if side == '90' else video_91_path)),
                 'color': (0, 255, 255) if side == '90' else (255, 0, 255),
-                'kalman': PoseKalmanFilter(dt=1/30.0, process_noise=1.0, measurement_noise=5.0,
-                                           gate_trans_mm=100.0, gate_rot_deg=5.0)
+                'kalman': PoseKalmanFilter(dt=1/30.0, process_noise=100.0, measurement_noise=1.0,
+                                           gate_trans_mm=300.0, gate_rot_deg=30.0)
             })
         return cameras
 

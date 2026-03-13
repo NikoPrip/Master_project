@@ -32,11 +32,11 @@ ARUCO_TL_3D = np.array([-90.0, -48.5])  # [X, Y]
 # N-fold marker 3D positions (relative to marker 0 at origin)
 MARKER_3D = np.array([
     [   0.0,    0.0, 0.0],  # Marker 0: Origin (reference point)
-    [-260.0,    0.0, 0.0],  # Marker 1: 260mm left of marker 0
-    [   0.0, -176.0, 0.0],  # Marker 2: 176mm below marker 0
-    [-260.0, -176.0, 0.0],  # Marker 3: 260mm left, 176mm below marker 0
-    [ -52.0,    0.0, 0.0],  # Marker 4: 52mm left of marker 0
-    [-104.0, -176.0, 0.0],  # Marker 5: 104mm left, 176mm below marker 0
+    [-260.0,    0.0, 0.0],  # Marker 1: 260mm right of marker 0
+    [   0.0, -132.5, 0.0],  # Marker 2: 132.5mm below marker 0
+    [-260.0, -176.0, 0.0],  # Marker 3: 260mm right, 176mm below marker 0
+    [-208.0, -176.0, 0.0],  # Marker 4: 208mm right, 176mm below marker 0
+    [-104.0,    0.0, 0.0],  # Marker 5: 104mm right of marker 0
 ], dtype=np.float32)
 
 # Number of markers
@@ -55,10 +55,10 @@ KERNEL_SIZE = 18
 # Board corner positions for visualization (boundary box)
 # Measured from marker 0 center (outdoor setup)
 BOARD_CORNERS_3D = np.array([
-    [ 173.0,  225.0, 0.0],  # Top-left
-    [-430.0,  225.0, 0.0],  # Top-right
-    [-430.0, -381.0, 0.0],  # Bottom-right
-    [ 173.0, -381.0, 0.0],  # Bottom-left
+    [ 175.0,  222.0, 0.0],  # Top-left     (175mm left, 222mm above marker 0)
+    [-430.0,  222.0, 0.0],  # Top-right    (430mm right, 222mm above marker 0)
+    [-430.0, -383.0, 0.0],  # Bottom-right (430mm right, 383mm below marker 0)
+    [ 175.0, -383.0, 0.0],  # Bottom-left  (175mm left, 383mm below marker 0)
 ], dtype=np.float32)
 
 # ============================================================================

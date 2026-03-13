@@ -68,7 +68,7 @@ class NfoldPoseTracker:
         for cam in self.cameras:
             cam['map1'], cam['map2'] = cv2.initUndistortRectifyMap(
                 cam['K'], cam['dist'], None, cam['K'], frame_size, cv2.CV_32FC1)
-            cam['kalman'] = PoseKalmanFilter(dt=1/30.0, process_noise=0.1, measurement_noise=0.3)
+            cam['kalman'] = PoseKalmanFilter(dt=1/30.0, process_noise=100.0, measurement_noise=1.0, gate_trans_mm=300.0, gate_rot_deg=30.0)
             cam['frames_without_match'] = 0
 
     def _setup_cameras(self, video_90_path, video_91_path):
@@ -300,7 +300,7 @@ class NfoldPoseTracker:
 
             recovery_mode = cam['frames_without_match'] > 5
             if cam['frames_without_match'] > 30:
-                cam['kalman'] = PoseKalmanFilter(dt=1/30.0, process_noise=0.1, measurement_noise=0.3)
+                cam['kalman'] = PoseKalmanFilter(dt=1/30.0, process_noise=100.0, measurement_noise=1.0, gate_trans_mm=300.0, gate_rot_deg=30.0)
                 kalman_pose = None
 
             matched_indices, marker_ids, pose = [], [], None
