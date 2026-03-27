@@ -23,7 +23,7 @@ from rotation_utils import rvec_to_quat, quat_to_rvec, quat_angular_distance
 class HybridPoseTracker:
     """Hybrid pose tracking using ArUco marker as reference and nfold markers for pose estimation."""
 
-    def __init__(self, calib_path, video_90_path, video_91_path=None, config_module='indoor_test.hybrid_config', csv_path=None):
+    def __init__(self, calib_path, video_90_path, video_91_path=None, config_module='indoor_test.hybrid_config', csv_path=None, num_markers=None):
         """
         Initialize hybrid pose tracker.
 
@@ -37,7 +37,9 @@ class HybridPoseTracker:
 
         # Import configuration dynamically
         config = importlib.import_module(config_module)
-        self.MARKER_3D = config.MARKER_3D
+        self.MARKER_3D = getattr(config, 'MARKER_3D_ARRAY', config.MARKER_3D)
+        if num_markers is not None:
+            self.MARKER_3D = self.MARKER_3D[:num_markers]
         self.BOARD_CORNERS_3D = config.BOARD_CORNERS_3D
         self.ARUCO_SIZE = config.ARUCO_SIZE
         self.ARUCO_CORNERS_3D = config.ARUCO_CORNERS_3D
@@ -123,7 +125,7 @@ class HybridPoseTracker:
                 aruco_tr_x = self.ARUCO_CORNERS_3D[1, 0]  # corner 1 X (= `tr` in 3D)
                 aruco_tr_y = self.ARUCO_CORNERS_3D[1, 1]  # corner 1 Y (= `tr` in 3D)
                 expected = {}
-                for i in range(6):
+                for i in range(len(self.MARKER_3D)):
                     t = (aruco_tr_y - self.MARKER_3D[i][1]) / self.ARUCO_SIZE
                     ref_point = tr + t * (br - tr)
                     x_offset = self.MARKER_3D[i][0] - aruco_tr_x
@@ -136,7 +138,7 @@ class HybridPoseTracker:
             if quat is not None:
                 proj, _ = cv2.projectPoints(
                     self.MARKER_3D, quat_to_rvec(quat), tvec, K, None)
-                return {i: proj[i, 0] for i in range(6)}
+                return {i: proj[i, 0] for i in range(len(self.MARKER_3D))}
 
         return None
 
@@ -210,14 +212,14 @@ class HybridPoseTracker:
             error = np.sqrt(np.mean(np.sum((img_pts - proj.reshape(-1, 2))**2, axis=1)))
 
             depth_min, depth_max = self.DEPTH_RANGE
-            if error > 3.0 or not (depth_min <= tvec[2, 0] <= depth_max):
+            if error > 5.0 or not (depth_min <= tvec[2, 0] <= depth_max):
                 return None, None, None
 
             return rvec_to_quat(rvec), tvec, error
         except Exception:
             return None, None, None
 
-    def visualize(self, frame, aruco_corners, aruco_ids, nfold, identified, quat, tvec, color, K):
+    def visualize(self, frame, aruco_corners, aruco_ids, identified, quat, tvec, color, K):
         """Draw visualization elements."""
         # Draw reference ArUco marker
         if aruco_corners is not None and aruco_ids is not None:
@@ -249,7 +251,7 @@ class HybridPoseTracker:
 
         # Status text
         mode = " + Target" if self.RECT_CORNERS_3D is not None else ""
-        cv2.putText(frame, f"Markers: {len(identified)}/6{mode}",
+        cv2.putText(frame, f"Markers: {len(identified)}/{len(self.MARKER_3D)}{mode}",
                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
     def process_frame_pair(self):
@@ -284,8 +286,10 @@ class HybridPoseTracker:
             # Estimate pose
             quat, tvec, error = self.estimate_pose(identified, cam['K'], predicted_pose=kalman_pose)
 
-            # Reject outliers that diverge too far from the Kalman prediction
-            if quat is not None and kalman_pose is not None:
+            # Reject outliers that diverge too far from the Kalman prediction.
+            # Skip gate during recovery (frames_without_match > 5) to allow self-correction
+            # after bad initialization.
+            if quat is not None and kalman_pose is not None and cam['frames_without_match'] <= 5:
                 if (quat_angular_distance(quat, pred_quat) > 1.0 or
                         np.linalg.norm(tvec - pred_tvec) > 200.0):
                     quat, tvec, error = None, None, None
@@ -309,7 +313,7 @@ class HybridPoseTracker:
                 ])
 
             # Visualize using filtered pose
-            self.visualize(frame, aruco_corners, aruco_ids, nfold, identified,
+            self.visualize(frame, aruco_corners, aruco_ids, identified,
                          filt_quat, filt_tvec, cam['color'], cam['K'])
             cam['frame'] = frame
 
@@ -334,3 +338,12 @@ class HybridPoseTracker:
         if self.csv_file:
             self.csv_file.close()
         cv2.destroyAllWindows()
+
+    def run_headless(self):
+        while True:
+            if not self.process_frame_pair():
+                break
+        for cam in self.cameras:
+            cam['cap'].release()
+        if self.csv_file:
+            self.csv_file.close()

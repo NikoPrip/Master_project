@@ -49,15 +49,7 @@ class ArucoPoseTracker:
         # Import rectangular object if available (outdoor config)
         self.RECT_CORNERS_3D = getattr(config, 'RECT_CORNERS_3D', None)
         self.DEPTH_RANGE = getattr(config, 'DEPTH_RANGE', (300, 3000))
-
-        # Import display scale (try outdoor_test.hybrid_config, fallback to 0.7)
-        try:
-            display_config = importlib.import_module('outdoor_test.hybrid_config')
-            self.DISPLAY_SCALE = display_config.DISPLAY_SCALE
-        except:
-            self.DISPLAY_SCALE = 0.7
-
-        self.aruco_reference_id = self.ARUCO_ID
+        self.DISPLAY_SCALE = getattr(config, 'DISPLAY_SCALE', 0.7)
 
         # Setup ArUco detector with subpixel refinement
         aruco_params = cv2.aruco.DetectorParameters()
@@ -120,7 +112,7 @@ class ArucoPoseTracker:
 
         if ids is not None:
             ids = ids.flatten()
-            marker_indices = np.where(ids == self.aruco_reference_id)[0]
+            marker_indices = np.where(ids == self.ARUCO_ID)[0]
             if len(marker_indices) > 0:
                 return corners[marker_indices[0]], True
 
@@ -171,7 +163,7 @@ class ArucoPoseTracker:
         # Draw ArUco marker
         if aruco_detected and aruco_corners is not None:
             corners_array = [aruco_corners]
-            ids_array = np.array([[self.aruco_reference_id]])
+            ids_array = np.array([[self.ARUCO_ID]])
             cv2.aruco.drawDetectedMarkers(frame, corners_array, ids_array)
 
         # Draw board boundary
@@ -194,7 +186,7 @@ class ArucoPoseTracker:
         # Status
         status = "Tracking" if rvec is not None else "Lost"
         mode = " + Target Object" if self.RECT_CORNERS_3D is not None else ""
-        cv2.putText(frame, f"ArUco ID {self.aruco_reference_id}{mode} | Status: {status}",
+        cv2.putText(frame, f"ArUco ID {self.ARUCO_ID}{mode} | Status: {status}",
                    (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
 
     def process_frame_pair(self):
@@ -256,6 +248,15 @@ class ArucoPoseTracker:
                 break
 
         self.cleanup()
+
+    def run_headless(self):
+        while True:
+            if not self.process_frame_pair():
+                break
+        for cam in self.cameras:
+            cam['cap'].release()
+        if self.csv_file:
+            self.csv_file.close()
 
     def cleanup(self):
         """Release resources."""

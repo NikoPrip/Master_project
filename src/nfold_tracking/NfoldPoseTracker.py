@@ -24,7 +24,7 @@ from rotation_utils import rvec_to_quat, quat_to_rvec, quat_angular_distance
 class NfoldPoseTracker:
     """N-fold marker detector with geometric constellation matching."""
 
-    def __init__(self, calib_path, video_90_path, video_91_path=None, config_module='nfold_config', csv_path=None):
+    def __init__(self, calib_path, video_90_path, video_91_path=None, config_module='nfold_config', csv_path=None, num_markers=None):
         """
         Initialize N-fold pose tracker.
 
@@ -41,12 +41,16 @@ class NfoldPoseTracker:
         self.NFOLD_ORDER = config.NFOLD_ORDER
         self.KERNEL_SIZE = config.KERNEL_SIZE
         self.MARKER_3D = config.MARKER_3D
+        if num_markers is not None:
+            keys = sorted(self.MARKER_3D.keys())[:num_markers]
+            self.MARKER_3D = {k: self.MARKER_3D[k] for k in keys}
         self.BOARD_CORNERS_3D = config.BOARD_CORNERS_3D
 
         # Import rectangular object if available (outdoor config)
         self.RECT_CORNERS_3D = getattr(config, 'RECT_CORNERS_3D', None)
         self.PROCESS_SCALE = getattr(config, 'PROCESS_SCALE', 1.0)
         self.DEPTH_RANGE = getattr(config, 'DEPTH_RANGE', (300, 3000))
+        self.MAX_MARKERS = getattr(config, 'MAX_MARKERS', 16)
 
         # CSV logging
         self.csv_file = None
@@ -61,7 +65,7 @@ class NfoldPoseTracker:
         self.cameras = self._setup_cameras(video_90_path, video_91_path)
 
         # Setup undistortion maps
-        ret, frame = self.cameras[0]['cap'].read()
+        _, frame = self.cameras[0]['cap'].read()
         self.cameras[0]['cap'].set(cv2.CAP_PROP_POS_FRAMES, 0)
         frame_size = (frame.shape[1], frame.shape[0])
 
@@ -101,10 +105,11 @@ class NfoldPoseTracker:
             tracker.locate_marker_init(gray_small)
             try:
                 markers, _, _ = tracker.detect_multiple_markers(gray_small)
+                markers = markers[:self.MAX_MARKERS]
                 if self.PROCESS_SCALE < 1.0:
                     inv = 1.0 / self.PROCESS_SCALE
-                    return [(m.x * inv, m.y * inv, 1.0) for m in markers]
-                return [(m.x, m.y, 1.0) for m in markers]
+                    return [(m.x * inv, m.y * inv) for m in markers]
+                return [(m.x, m.y) for m in markers]
             except:
                 return []
 
@@ -116,7 +121,7 @@ class NfoldPoseTracker:
                     np.array([self.MARKER_3D[i] for i in sorted(self.MARKER_3D.keys())], dtype=np.float32),
                     quat_to_rvec(quat), tvec, K, None
                 )
-                return {i: proj[i, 0] for i in range(6)}
+                return {i: proj[i, 0] for i in range(len(self.MARKER_3D))}
         return None
 
     def match_with_expected(self, detected_positions, expected_positions, max_distance=30, recovery_mode=False):
@@ -205,7 +210,8 @@ class NfoldPoseTracker:
                 best_match = list(zip(row_ind, col_ind))
 
         matches = [(det_idx, model_ids[model_idx]) for det_idx, model_idx in best_match]
-        if not self.validate_chirality(matches, detected_positions, recovery_mode):
+        chirality_ok = self.validate_chirality(matches, detected_positions, recovery_mode)
+        if not chirality_ok:
             return None
 
         if best_cost > max_cost:
@@ -248,7 +254,7 @@ class NfoldPoseTracker:
             error = np.sqrt(np.mean(np.sum((img_pts - proj_pts.reshape(-1, 2))**2, axis=1)))
 
             depth_min, depth_max = self.DEPTH_RANGE
-            if error > 3.0 or not (depth_min <= tvec[2, 0] <= depth_max):
+            if error > 5.0 or not (depth_min <= tvec[2, 0] <= depth_max):
                 return None
 
             return {'quat': rvec_to_quat(rvec), 'tvec': tvec, 'error': error}
@@ -277,7 +283,7 @@ class NfoldPoseTracker:
                 for i in range(4):
                     cv2.line(frame, tuple(rect_pts[i]), tuple(rect_pts[(i+1)%4]), rect_color, 4)
 
-        for i, (x, y, _) in enumerate(markers):
+        for i, (x, y) in enumerate(markers):
             if i in matched_set:
                 cv2.circle(frame, (int(x), int(y)), 8, (0, 255, 0), -1)
                 cv2.putText(frame, str(marker_ids[matched_indices.index(i)]),
@@ -308,10 +314,10 @@ class NfoldPoseTracker:
 
             if kalman_pose and not recovery_mode:
                 expected = self.get_expected_positions(kalman_pose, cam['K'])
-                matches = self.match_with_expected([(m[0], m[1]) for m in markers], expected, recovery_mode=recovery_mode)
+                matches = self.match_with_expected(markers, expected, recovery_mode=recovery_mode)
 
             if not matches:
-                matches = self.match_constellation([(m[0], m[1]) for m in markers], recovery_mode=recovery_mode)
+                matches = self.match_constellation(markers, recovery_mode=recovery_mode)
 
             if matches:
                 predicted_pose_dict = None
@@ -373,3 +379,12 @@ class NfoldPoseTracker:
         if self.csv_file:
             self.csv_file.close()
         cv2.destroyAllWindows()
+
+    def run_headless(self):
+        while True:
+            if not self.process_frame_pair():
+                break
+        for cam in self.cameras:
+            cam['cap'].release()
+        if self.csv_file:
+            self.csv_file.close()
