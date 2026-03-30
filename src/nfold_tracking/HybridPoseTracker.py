@@ -115,22 +115,15 @@ class HybridPoseTracker:
         if aruco_corners is not None and aruco_ids is not None:
             ref_idx = np.where(aruco_ids == self.ARUCO_REFERENCE_ID)[0]
             if len(ref_idx) > 0:
-                tl, tr, br, _ = aruco_corners[ref_idx[0]].reshape(4, 2)
-                # x_unit must point in the +X direction; derive sign from the 3D model
-                # (corner 0 may be right-top or left-top depending on marker orientation)
-                x_sign = np.sign(self.ARUCO_CORNERS_3D[0, 0] - self.ARUCO_CORNERS_3D[1, 0])
-                x_unit = x_sign * (tl - tr) / np.linalg.norm(tl - tr)
-                x_scale = np.linalg.norm(tl - tr) / self.ARUCO_SIZE
-
-                aruco_tr_x = self.ARUCO_CORNERS_3D[1, 0]  # corner 1 X (= `tr` in 3D)
-                aruco_tr_y = self.ARUCO_CORNERS_3D[1, 1]  # corner 1 Y (= `tr` in 3D)
-                expected = {}
-                for i in range(len(self.MARKER_3D)):
-                    t = (aruco_tr_y - self.MARKER_3D[i][1]) / self.ARUCO_SIZE
-                    ref_point = tr + t * (br - tr)
-                    x_offset = self.MARKER_3D[i][0] - aruco_tr_x
-                    expected[i] = ref_point + x_unit * (x_offset * x_scale)
-                return expected
+                corners_img = aruco_corners[ref_idx[0]].reshape(4, 2).astype(np.float32)
+                corners_3d  = self.ARUCO_CORNERS_3D[:, :2].astype(np.float32)
+                H, _ = cv2.findHomography(corners_3d, corners_img)
+                if H is not None:
+                    expected = {}
+                    for i, pt in enumerate(self.MARKER_3D):
+                        p = H @ np.array([pt[0], pt[1], 1.0], dtype=np.float64)
+                        expected[i] = p[:2] / p[2]
+                    return expected
 
         # Fallback to last pose
         if last_pose and K is not None:
@@ -173,10 +166,10 @@ class HybridPoseTracker:
                             best[1].number = marker_id
                             identified.append(best[1])
                             used.add(best[0])
-                    return nfold, identified
+                    return identified
             except:
                 pass
-        return [], []
+        return []
 
     def estimate_pose(self, markers, K, predicted_pose=None):
         """Estimate pose from markers using SQPNP.
@@ -228,7 +221,7 @@ class HybridPoseTracker:
                 cv2.aruco.drawDetectedMarkers(frame, [aruco_corners[ref_idx[0]]],
                                              np.array([aruco_ids[ref_idx[0]]]))
 
-        # Draw board boundary — convert quat→rvec only at the OpenCV boundary
+        # Draw board boundary
         if quat is not None and tvec is not None:
             rvec = quat_to_rvec(quat)
             board_proj = cv2.projectPoints(self.BOARD_CORNERS_3D, rvec, tvec, K, None)[0]
@@ -239,11 +232,11 @@ class HybridPoseTracker:
             # Draw rectangular object boundary (if configured)
             if self.RECT_CORNERS_3D is not None:
                 rect_proj = cv2.projectPoints(self.RECT_CORNERS_3D, rvec, tvec, K, None)[0].reshape(-1, 2).astype(int)
-                rect_color = (0, 255, 0)  # Green for target object
+                rect_color = (0, 255, 0)
                 for i in range(4):
                     cv2.line(frame, tuple(rect_proj[i]), tuple(rect_proj[(i+1)%4]), rect_color, 4)
 
-        # Draw nfold markers (only identified ones)
+        # Draw identified markers
         for m in identified:
             cv2.circle(frame, (int(m.x), int(m.y)), 8, (0, 255, 0), -1)
             cv2.putText(frame, str(m.number), (int(m.x) + 12, int(m.y) + 5),
@@ -280,7 +273,7 @@ class HybridPoseTracker:
                 kalman_pose = None
 
             # Detect and identify nfold markers (use Kalman prediction as fallback)
-            nfold, identified = self.detect_and_identify_markers(
+            identified = self.detect_and_identify_markers(
                 gray, cam['tracker'], aruco_corners, aruco_ids, kalman_pose, cam['K'])
 
             # Estimate pose

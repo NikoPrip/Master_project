@@ -124,7 +124,7 @@ class NfoldPoseTracker:
                 return {i: proj[i, 0] for i in range(len(self.MARKER_3D))}
         return None
 
-    def match_with_expected(self, detected_positions, expected_positions, max_distance=30, recovery_mode=False):
+    def match_with_expected(self, detected_positions, expected_positions, max_distance=30):
         if not expected_positions:
             return None
 
@@ -140,40 +140,17 @@ class NfoldPoseTracker:
                 identified.append((best[0], marker_id))
                 used.add(best[0])
 
-        if len(identified) >= 4 and self.validate_chirality(identified, detected_positions, recovery_mode):
+        if len(identified) >= 4:
             return identified
         return None
 
-    def validate_chirality(self, matches, detected_positions, recovery_mode=False):
-        match_dict = {mid: detected_positions[det_idx] for det_idx, mid in matches}
-
-        if recovery_mode and len(match_dict) >= 3:
-            return True
-
-        # Check multiple marker triplets
-        triplets = [(0, 1, 2), (0, 1, 3)]
-        for m0, m1, m2 in triplets:
-            if m0 in match_dict and m1 in match_dict and m2 in match_dict:
-                p0 = np.array([match_dict[m0][0], match_dict[m0][1]])
-                p1 = np.array([match_dict[m1][0], match_dict[m1][1]])
-                p2 = np.array([match_dict[m2][0], match_dict[m2][1]])
-
-                cross_z = (p1[0] - p0[0]) * (p2[1] - p0[1]) - (p1[1] - p0[1]) * (p2[0] - p0[0])
-                if cross_z <= 0:
-                    return False
-
-        return len(match_dict) >= 3 or recovery_mode
-
-    def match_constellation(self, detected_positions, max_cost=0.85, recovery_mode=False):
-        min_markers = 3 if recovery_mode else 4
-        if len(detected_positions) < min_markers:
+    def match_constellation(self, detected_positions, max_cost=0.85):
+        if len(detected_positions) < 4:
             return None
 
-        if recovery_mode:
-            max_cost = 1.2
-
         model_ids = sorted(self.MARKER_3D.keys())
-        model_2d = np.array([(self.MARKER_3D[mid][0], self.MARKER_3D[mid][1]) for mid in model_ids])
+        # Board Y+=up, image y+=down: negate Y to match image coordinate convention
+        model_2d = np.array([(self.MARKER_3D[mid][0], -self.MARKER_3D[mid][1]) for mid in model_ids])
 
         det_arr = np.array(detected_positions, dtype=np.float32)
         det_norm = (det_arr - det_arr.mean(axis=0)) / np.mean(np.linalg.norm(det_arr - det_arr.mean(axis=0), axis=1))
@@ -210,9 +187,6 @@ class NfoldPoseTracker:
                 best_match = list(zip(row_ind, col_ind))
 
         matches = [(det_idx, model_ids[model_idx]) for det_idx, model_idx in best_match]
-        chirality_ok = self.validate_chirality(matches, detected_positions, recovery_mode)
-        if not chirality_ok:
-            return None
 
         if best_cost > max_cost:
             return None
@@ -288,8 +262,6 @@ class NfoldPoseTracker:
                 cv2.circle(frame, (int(x), int(y)), 8, (0, 255, 0), -1)
                 cv2.putText(frame, str(marker_ids[matched_indices.index(i)]),
                           (int(x)+12, int(y)+5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-            else:
-                cv2.circle(frame, (int(x), int(y)), 6, (0, 0, 255), 2)
 
     def process_frame_pair(self):
         frames = [(cam['cap'].get(cv2.CAP_PROP_POS_MSEC), cam['cap'].read()[1]) for cam in self.cameras]
@@ -304,7 +276,6 @@ class NfoldPoseTracker:
             pred_quat, pred_tvec = cam['kalman'].predict()
             kalman_pose = (pred_quat, pred_tvec) if pred_quat is not None else None
 
-            recovery_mode = cam['frames_without_match'] > 5
             if cam['frames_without_match'] > 30:
                 cam['kalman'] = PoseKalmanFilter(dt=1/30.0, process_noise=100.0, measurement_noise=1.0, gate_trans_mm=300.0, gate_rot_deg=30.0)
                 kalman_pose = None
@@ -312,12 +283,12 @@ class NfoldPoseTracker:
             matched_indices, marker_ids, pose = [], [], None
             matches = None
 
-            if kalman_pose and not recovery_mode:
+            if kalman_pose:
                 expected = self.get_expected_positions(kalman_pose, cam['K'])
-                matches = self.match_with_expected(markers, expected, recovery_mode=recovery_mode)
+                matches = self.match_with_expected(markers, expected)
 
             if not matches:
-                matches = self.match_constellation(markers, recovery_mode=recovery_mode)
+                matches = self.match_constellation(markers)
 
             if matches:
                 predicted_pose_dict = None
