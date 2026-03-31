@@ -25,8 +25,8 @@ def parse_args():
                        default='nfold', help='Tracking mode: aruco, hybrid, or nfold')
     parser.add_argument('--video90', type=str, default=None, help='Path to video files (optional)')
     parser.add_argument('--video91', type=str, default=None, help='Path to video files (optional)')
-    parser.add_argument('--calib', type=str, choices=['indoor', 'outdoor', 'phone'], default='indoor', help='Path to calibration files (optional)')
-    parser.add_argument('--config', type=str, default="indoor", choices=['indoor', 'outdoor', 'optitrack'], help='Config file path (optional, default: indoor)')
+    parser.add_argument('--calib', type=str, choices=['indoor', 'outdoor', 'phone', 'Simulation_test', 'sim_cam_80_deg', 'sim_cam_actual_calib'], default='indoor', help='Path to calibration files (optional)')
+    parser.add_argument('--config', type=str, default="indoor", choices=['indoor', 'outdoor', 'optitrack','Simulation_test'], help='Config file path (optional, default: indoor)')
     parser.add_argument('--output', type=str, default=None, help='Path to output CSV file for pose logging (optional)')
     return parser.parse_args()
 
@@ -37,7 +37,7 @@ def main():
 
     # Setup paths based on mode
     base_path = Path(__file__).parent
-    calib_path = Path('/home/nikolai/Uni/Master_project/src/camera_calibration')
+    calib_path = Path(__file__).parent.parent / 'camera_calibration'
     default_90 = {'aruco': 'Aruco_cam_90.mp4', 'hybrid': 'Hybrid_cam_90.mp4', 'nfold': 'Nfold_cam_90.mp4'}
     default_91 = {'aruco': 'Aruco_cam_91.mp4', 'hybrid': 'Hybrid_cam_91.mp4', 'nfold': 'Nfold_cam_91.mp4'}
     video_90 = str(base_path / 'test_videos' / (args.video90 or default_90[args.mode]))
@@ -46,7 +46,7 @@ def main():
     calib_file = str(calib_path / args.calib / 'calib_files')
 
     try:
-        config_prefix = {'indoor': 'indoor_test', 'outdoor': 'outdoor_test', 'optitrack': 'optitrack'}[args.config]
+        config_prefix = {'indoor': 'indoor_test', 'outdoor': 'outdoor_test', 'optitrack': 'optitrack', 'Simulation_test': 'Simulation_test'}[args.config]
         if args.mode == 'aruco':
             tracker = ArucoPoseTracker(calib_file, video_90, config_module=f'{config_prefix}.aruco_config', csv_path=args.output)
         elif args.mode == 'hybrid':
