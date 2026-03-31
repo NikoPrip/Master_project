@@ -1,0 +1,182 @@
+NameOfData "Grader/Grader"
+TypeOfData "MachineSpecification"
+
+!--- Kinematic frames
+
+{ "BodyKin"
+	Position (0.000, 0.000, 0.000)
+	RPY (0, 0, 0)
+	ReferenceFrame ""
+	Attributes
+		Link
+}
+
+{ "RollKin"
+	Position (0.000, 0.000, 0.000)
+	RPY (90, 0, 90)
+	ReferenceFrame "BodyKin"
+	Attributes
+		Link
+		ActiveJoint
+		Revolute
+		JointName "Roll"
+		JointHomePos 0
+		JointPosLimit -450 450
+}
+
+{ "PitchKin"
+	Position (0.000, 0.000, 0.000)
+	RPY (0, -90, 0)
+	ReferenceFrame "RollKin"
+	Attributes
+		Link
+		ActiveJoint
+		Revolute
+		JointName "Pitch"
+		JointHomePos 0
+		JointPosLimit -450 450
+}
+
+{ "BodyEndKin"
+	Position (0.000, 0.000, 0.000)
+	RPY (0, 0, -90)
+	ReferenceFrame "PitchKin"
+	Attributes
+		Link
+}
+
+{ "Ground"
+	Position (0, 0, -1.485)
+	RPY(0, 0, 0)
+	ReferenceFrame "BodyEndKin"
+	Attributes
+		CalibLength "Ground Height" -3 optional
+}
+
+{ "Ground_Left"
+	Position (0, 1.724, 0)
+	RPY(0, 0, 0)
+	ReferenceFrame "Ground"
+	Attributes
+		CalibLength "Ground Left" 2 optional
+}
+
+{ "Ground_Right"
+	Position (0,-1.724, 0)
+	RPY(0, 0, 0)
+	ReferenceFrame "Ground"
+	Attributes
+		CalibLength "Ground Right" -2 optional
+}
+
+{ "Link1"
+	Position (2.562, 0.000, -0.542)
+	RPY (0, -90, 0)
+	ReferenceFrame "BodyEndKin"
+	Attributes
+		Link
+		ActiveJoint
+		JointName "Tilt"
+		Revolute
+		JointHomePos 0
+		JointPosLimit -180 180
+		DualPositionTiltJoint
+}
+
+{ "Link2"
+	Position (0, 0, 0)
+	RPY (0, 90, 0)
+	ReferenceFrame "Link1"
+	Attributes
+		Link
+		ActiveJoint
+		JointName "Rotation"
+		Revolute
+		JointHomePos 0
+		JointPosLimit -180 180
+		DualPositionRotationJoint
+}
+
+{ "Link3"
+	Position (-0.189, 0.000, -0.485)
+	RPY(0, 0, 90)
+	ReferenceFrame "Link2"
+	Attributes
+		Link
+		ActiveJoint
+		JointName "Rake"
+		Revolute
+		JointHomePos 0
+		JointPosLimit -180 180
+                RakeJoint
+}
+
+!--- Tool frames
+
+{ "TOOL_FRAME"
+	Position ( 0, -0.290, 0)
+	RPY (0, 0, -90)
+	ReferenceFrame "Link3"
+	Attributes
+}
+
+{ "Blade Wear Mount"
+	Position (0.252, 0, 0)
+	RPY (0, 0, 0)
+	ReferenceFrame "TOOL_FRAME"
+	Attributes
+}
+
+{ "TP"
+	Position ( 0, 0, 0)
+	RPY (0, 0, 0)
+	ReferenceFrame "Blade Wear Mount"
+	Attributes
+		TPFrame
+		CalibLength "Blade Wear A" 1
+		CalibLength "Blade Wear B" -3
+}
+
+{ "TP_Right"
+	Position (0, -1.835, 0)
+	RPY (0, 0, 0)
+	ReferenceFrame "TP"
+	Attributes
+		TPFrame
+		CalibLength "Tool HalfWidth" -2 optional
+}
+
+{ "TP_Left"
+	Position (0, 3.670, 0)
+	RPY (0, 0, 0)
+	ReferenceFrame "TP_Right"
+	Attributes
+		TPFrame
+		CalibLength "Tool Width" 2
+}
+
+! --- GPS
+
+{ "GPS1Kin"
+	Position (0, -2, 2.18)
+	RPY (0, 0, 0)
+	ReferenceFrame "Blade Wear Mount"
+	Attributes
+		GPS
+}
+
+{ "GPS2Kin"
+	Position (0, 2, 2.18)
+	RPY (0, 0, 0)
+	ReferenceFrame "Blade Wear Mount"
+	Attributes
+		GPS
+}
+
+{ "PrismKin"
+	Position (0, 2, 2.18)
+	RPY (0, 0, 0)
+	ReferenceFrame "Blade Wear Mount"
+	Attributes
+		GPS
+}

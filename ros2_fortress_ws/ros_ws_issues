@@ -1,0 +1,23 @@
+Ting der skal fikses:
+
+Kamera
+	- Placering og orientering
+
+blade_joint controller
+	- 
+
+Udregn korrekte placeringer
+	- Kamera med global pos og orientering
+	- marker med global pos og orientering
+	- blad iforhold til marker
+
+
+Fiks plot og databehandling
+	- video fucker up ved længere optagelser
+		- spørg henrik
+	- 
+
+Position chain:
+
+blade joint state -> marker global position -> blade corners 
+blade_joint_state -> blade corners?

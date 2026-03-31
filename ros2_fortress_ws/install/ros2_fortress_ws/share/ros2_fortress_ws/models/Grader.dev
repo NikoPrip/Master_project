@@ -1,0 +1,7 @@
+NameOfData "Grader/Grader"
+TypeOfData "MachineSpecification"
+
+File "Grader.kin"
+File "Grader.sen"
+File "Grader.geo"
+File "Grader.avo"

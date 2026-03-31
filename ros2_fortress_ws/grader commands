@@ -1,0 +1,65 @@
+cd /home/johan/Documents/masters/ros2_fortress_ws
+export ROS_DOMAIN_ID=0
+source install/setup.bash
+
+ros2 launch ros2_fortress_ws launch_sim.py
+
+
+# List all ROS2 nodes
+ros2 node list
+
+# List all ROS2 topics
+ros2 topic list
+
+# View TF frame tree
+ros2 run tf2_tools view_frames
+
+
+# Echo grader pose (with frame_id)
+ros2 topic echo /grader/pose
+
+# Echo blade joint position
+ros2 topic echo /blade_rotation_joint/position
+
+# Echo markers for visualization
+ros2 topic echo /grader/markers
+
+
+# Rotate blade to 45 degrees (0.785 radians)
+ign topic -t /blade_rotation_joint/position -m ignition.msgs.Double -p "data: 0.785"
+
+# Rotate blade to 90 degrees
+ign topic -t /blade_rotation_joint/position -m ignition.msgs.Double -p "data: 1.5708"
+
+# Rotate blade to 0 degrees
+ign topic -t /blade_rotation_joint/position -m ignition.msgs.Double -p "data: 0.0"
+
+# Move blade to 45 degrees (0.785 radians)
+ros2 topic pub /blade_rotation_joint/position std_msgs/msg/Float64 "data: 0.785"
+
+# Move blade to -30 degrees (-0.524 radians)  
+ros2 topic pub /blade_rotation_joint/position std_msgs/msg/Float64 "data: -0.524"
+
+# Return to neutral (0 degrees)
+ros2 topic pub /blade_rotation_joint/position std_msgs/msg/Float64 "data: 0.0"
+
+# See ros view
+ros2 run rqt_image_view rqt_image_view
+
+# record data from camera and joint
+python3 scripts/record_state_and_camera.py --output-dir "TEST_NAME"
+
+# make video from images
+python3 scripts/images_to_mp4.py test_data/"TEST NAME"
+
+plot joint state data
+python3 scripts/plot_joint_state.py --csv test_data/"TEST NAME"/joint_states.csv
+
+Kør prips program i nfold tracking mappen:
+python3 TrackingMain.py --mode aruco --video90 Aruco_1_01/recording.mp4 --config Simulation_test --calib non_calibration --output test_videos/Aruco_1_01/output.csv
+
+plot sim vs vision
+python3 scripts/plot_camera_vs_gz.py --csv_file test_data/test_new_camera_placement/merged.csv
+
+# Kill all Gazebo, ROS2, RViz processes
+pkill -9 -f "gazebo\|ros2\|rviz"

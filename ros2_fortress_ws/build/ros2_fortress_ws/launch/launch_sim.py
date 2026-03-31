@@ -1,0 +1,1 @@
+/home/johan/Documents/masters/ros2_fortress_ws/launch/launch_sim.py

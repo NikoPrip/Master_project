@@ -1,0 +1,26 @@
+            <pose>2.5 0.65 1.0 0 0.0 1.5708</pose>
+
+
+CAMERA_FRAME_TRANSFORM = {
+    # Traansform from world frame to camera optical frame (z forward, x right, y down)
+    "translation": {
+        "x": 2.5,     # m
+        "y": 0.65,    # m
+        "z": 1.0,     # m
+    },
+    "rotation": {
+        "roll": -1.5708, # rad  (~-90 deg)
+        "pitch": 0.0,   # rad  (~0 deg)
+        "yaw": 0.0,   # rad  (0 deg)
+    },
+    
+    
+    
+CAMERA_LINK_POSE = {
+    "x":     2.5,     # m
+    "y":     0.65,    # m
+    "z":     1.0,     # m
+    "roll":  0.0,     # rad
+    "pitch": 0.0,   # rad  (~0 deg)
+    "yaw":   1.5708,   # rad  (~90 deg)
+}

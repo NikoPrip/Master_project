@@ -1,0 +1,183 @@
+NameOfData "Grader/Grader"
+TypeOfData "AvoidanceSpecification"
+
+!--- Kinematic frames
+
+{ "TP_avoid"
+        Position (0, 0, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "TP"
+        Attributes
+        AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "TP_Right_avoid"
+        Position (0, 0, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "TP_Right"
+        Attributes
+        AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "TP_Left_avoid"
+        Position (0, 0, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "TP_Left"
+        Attributes
+        AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "GPS1Kin_avoid"
+        Position (0, 0, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "GPS1Kin"
+        Attributes
+        AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+
+{ "GPS2Kin_avoid"
+        Position (0, 0, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "GPS2Kin"
+        Attributes
+        AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "FrontLengthKin"
+        Position (0, 0, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "BodyEndKin"
+        Attributes
+        AvoidancePoint
+                CalibLength "Avoidance Machine Front Length" 1 optional
+}
+
+{ "BackLengthKin"
+        Position (0, 0, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "BodyEndKin"
+        Attributes
+        AvoidancePoint
+                CalibLength "Avoidance Machine Back Length" -1 optional
+}
+
+{ "FrontHeightKin"
+        Position (0, 0, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "FrontLengthKin"
+        Attributes
+        AvoidancePoint
+                CalibLength "Avoidance Machine Height" 1 optional
+}
+
+{ "BackHeightKin"
+        Position (0, 0, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "BackLengthKin"
+        Attributes
+}
+
+{ "BBL"
+        Position (0, 1.25, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "BackLengthKin"
+        Attributes
+                AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "BBR"
+        Position (0,-1.25, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "BackLengthKin"
+        Attributes
+                AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "FBL"
+        Position (0, 1.25, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "FrontLengthKin"
+        Attributes
+                AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "FBR"
+        Position (0,-1.25, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "FrontLengthKin"
+        Attributes
+                AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "BTL"
+        Position (0, 1.25, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "BackHeightKin"
+        Attributes
+                AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "BTR"
+        Position (0,-1.25, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "BackHeightKin"
+        Attributes
+                AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "FTL"
+        Position (0, 1.25, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "FrontHeightKin"
+        Attributes
+                AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+
+{ "FTR"
+        Position (0,-1.25, 0)
+        RPY (0, 0, 0)
+        ReferenceFrame "FrontHeightKin"
+        Attributes
+                AvoidancePoint
+                !GeoID "../../CommonGeometry/GPS"
+                !GeoScale 0.002
+                !RGB 0.00 1.00 0.00
+}
+

@@ -1,0 +1,38 @@
+NameOfData "Grader/Grader"
+TypeOfData "MachineSpecification"
+
+!--- Sensor frames
+
+{ "Rotation"
+	Position (0.000, 0.000,0.000)
+	RPY (90, 0, 0)
+	ReferenceFrame "Link2"
+	Attributes
+		SensorID "CB_ROTATION"
+		NotCalibratable
+}
+
+{ "Rake"
+	Position (0.000, 0.000,0.000)
+	RPY (0, 0, 0)
+	ReferenceFrame "Link3"
+	Attributes
+		SensorID "CB_RAKE"
+		NotCalibratable
+}
+
+{ "Link2b"
+	Position (0.000, 0.000,0.000)
+	RPY (0, -90, 0)
+	ReferenceFrame "Link2"
+}
+
+{ "Tilt"
+	Position (1.000, 0.000,0.000)
+	RPY (-90, 0, 0)
+	ReferenceFrame "Link2b"
+	Attributes
+		SensorID "CB_TILT"
+		ControlledJoint "Tilt"
+		NotCalibratable
+}
