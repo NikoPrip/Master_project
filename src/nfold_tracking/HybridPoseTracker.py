@@ -171,8 +171,11 @@ class HybridPoseTracker:
                 pass
         return []
 
-    def estimate_pose(self, markers, K, predicted_pose=None):
+    def estimate_pose(self, markers, K, predicted_pose=None, aruco_img_pts=None):
         """Estimate pose from markers using SQPNP.
+
+        Optionally augments the point set with ArUco corners (aruco_img_pts,
+        shape (4,2)) for improved translation accuracy.
 
         Returns (quat, tvec, error) where quat is [qw, qx, qy, qz], or
         (None, None, None) on failure.
@@ -182,6 +185,10 @@ class HybridPoseTracker:
 
         img_pts = np.array([[m.x, m.y] for m in markers], dtype=np.float32)
         obj_pts = np.array([self.MARKER_3D[m.number] for m in markers], dtype=np.float32)
+
+        if aruco_img_pts is not None and len(aruco_img_pts) == 4:
+            img_pts = np.vstack([img_pts, aruco_img_pts.astype(np.float32)])
+            obj_pts = np.vstack([obj_pts, self.ARUCO_CORNERS_3D])
 
         try:
             if predicted_pose is not None:
@@ -276,8 +283,16 @@ class HybridPoseTracker:
             identified = self.detect_and_identify_markers(
                 gray, cam['tracker'], aruco_corners, aruco_ids, kalman_pose, cam['K'])
 
-            # Estimate pose
-            quat, tvec, error = self.estimate_pose(identified, cam['K'], predicted_pose=kalman_pose)
+            # Extract reference ArUco corners for augmented PnP
+            aruco_ref_corners = None
+            if aruco_corners is not None and aruco_ids is not None:
+                ref_idx = np.where(aruco_ids == self.ARUCO_REFERENCE_ID)[0]
+                if len(ref_idx) > 0:
+                    aruco_ref_corners = aruco_corners[ref_idx[0]].reshape(4, 2)
+
+            # Estimate pose (ArUco corners augment the nfold point set when available)
+            quat, tvec, error = self.estimate_pose(identified, cam['K'], predicted_pose=kalman_pose,
+                                                   aruco_img_pts=aruco_ref_corners)
 
             # Reject outliers that diverge too far from the Kalman prediction.
             # Skip gate during recovery (frames_without_match > 5) to allow self-correction

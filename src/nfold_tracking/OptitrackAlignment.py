@@ -2,7 +2,6 @@ import numpy as np
 import pandas as pd
 from scipy.interpolate import interp1d
 from scipy.spatial.transform import Rotation, Slerp
-from scipy.signal import correlate
 
 # ---------------------------------------------------------------------------
 # Camera extrinsic  (same for all tracker types)
@@ -12,18 +11,16 @@ from scipy.signal import correlate
 # (more than pure Rx180 = diag([1,-1,-1])). Fit from hybrid run 1 alignment:
 #   sin(5.1°)×mean_tz ≈ 220mm  →  explains 222mm constant Ty offset
 #   sin(5.1°)×ΔTz ≈ 57mm      →  explains Ty range mismatch (72mm opti vs 32mm tracker)
-CAM_R_BODY = Rotation.from_euler('xy', [185.1, 2.6], degrees=True).as_matrix()
+CAM_R_BODY = Rotation.from_euler('xyz', [-176.71, 2.90, -0.81], degrees=True)
 
 CAM_R_CORRECTION = np.eye(3)  # no correction applied
-CAM_T_BODY = np.array([-42.6, -80.8, -3.9])  # mm, camera lens in phone body frame
-                                             # computed from centroid-to-camera offset:
-                                             # camera = marker4 - 20mm Y; centroid is rigid body origin
+CAM_T_BODY = np.array([-10.0, -10.0, -0.8])  # mm, camera lens in phone body frame
 
 # Board-frame → tracker-model-frame convention correction.
 # OptiTrack board body: X+ = right, Y+ = up, Z+ = toward camera.
-# Tracker MARKER_3D model:  X+ = left,  Y+ = up, Z+ = toward camera.
-# → flip X and Z  ⟹  Ry180 = diag([-1, 1, -1])
-BOARD_R_MODEL = np.diag([-1.0, 1.0, -1.0])  # Ry180
+# Tracker MARKER_3D model:  X+ = right, Y+ = up, Z+ = toward camera.
+# → same convention, no correction needed.
+BOARD_R_MODEL = np.eye(3)
 
 # ---------------------------------------------------------------------------
 # CSV loading
@@ -124,10 +121,9 @@ def compute_relative_pose(opti_df, board_t_marker, board_r_model=None, cam_r_bod
     t_rel = R_phone.inv().apply(t_marker - t_phone)
 
     # Apply board convention correction then camera extrinsic.
-    # R_rel is board-body→phone-body; multiply by BOARD_R_MODEL to account for
-    # the axis mismatch between OptiTrack board frame and tracker MARKER_3D frame
-    # (board X+/Z+ are opposite to model X+/Z+).
-    R_cam_body  = Rotation.from_matrix(cam_r_body if cam_r_body is not None else CAM_R_BODY)
+    # R_rel is board-body→phone-body; multiply by BOARD_R_MODEL to convert from
+    # OptiTrack board frame to tracker MARKER_3D frame (both X+ = right, so identity).
+    R_cam_body  = Rotation.from_matrix(cam_r_body) if cam_r_body is not None else CAM_R_BODY
     R_correction = Rotation.from_matrix(CAM_R_CORRECTION)
     mdl = board_r_model if board_r_model is not None else BOARD_R_MODEL
     R_board_mdl = Rotation.from_matrix(mdl)
@@ -275,9 +271,9 @@ if __name__ == "__main__":
     BOARD_T_NFOLD  = np.array([175.0, -222.0, -20.0])   # → nfold marker 0 (same board as hybrid)
 
     configs = [
-        ("hybrid", BOARD_T_HYBRID, [1, 2, 3], "hybrid", None),              # BOARD_R_MODEL = Ry180
+        ("hybrid", BOARD_T_HYBRID, [1, 2, 3], "hybrid", None),
         ("aruco",  BOARD_T_ARUCO,  [1, 2, 3], "aruco",  np.eye(3)),        # ArUco: standard X+=right, no flip
-        ("nfold",  BOARD_T_NFOLD,  [1, 2, 3], "hybrid", None),             # BOARD_R_MODEL = Ry180
+        ("nfold",  BOARD_T_NFOLD,  [1, 2, 3], "hybrid", None),
     ]
 
     for name, board_t_ref, runs, opti_name, b_r_model in configs:

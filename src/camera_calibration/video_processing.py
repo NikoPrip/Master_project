@@ -3,11 +3,12 @@ import glob
 import os
 
 class VideoProcessor:
-    def __init__(self, video_path, output_dir, aruco_dict_type=cv.aruco.DICT_5X5_250, board_size=(12, 9), square_length=0.06, marker_length=0.045):
+    def __init__(self, video_path, output_dir, aruco_dict_type=cv.aruco.DICT_5X5_250, board_size=(12, 9), square_length=0.06, marker_length=0.045, legacy_pattern=False):
         self.video_path = video_path
         self.output_dir = output_dir
         self.aruco_dict = cv.aruco.getPredefinedDictionary(aruco_dict_type)
         self.board = cv.aruco.CharucoBoard(board_size, square_length, marker_length, self.aruco_dict)
+        self.board.setLegacyPattern(legacy_pattern)
         self.detector = cv.aruco.ArucoDetector(self.aruco_dict)
         
         if not os.path.exists(output_dir):

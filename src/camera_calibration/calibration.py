@@ -5,15 +5,16 @@ import os
 import numpy as np
 
 class Calibrator:
-    def __init__(self, image_dir, charuco_board_size=(12, 9), marker_type=aruco.DICT_5X5_250, square_size=0.06, marker_size=0.045):
+    def __init__(self, image_dir, charuco_board_size=(12, 9), marker_type=aruco.DICT_5X5_250, square_size=0.06, marker_size=0.045, legacy_pattern=False):
         self.image_dir = image_dir
         self.aruco_dict = aruco.getPredefinedDictionary(marker_type)
         self.charuco_board = aruco.CharucoBoard(
             charuco_board_size,
-            square_size, 
-            marker_size, 
+            square_size,
+            marker_size,
             self.aruco_dict
         )
+        self.charuco_board.setLegacyPattern(legacy_pattern)
         self.criteria = (cv.TERM_CRITERIA_EPS + cv.TERM_CRITERIA_MAX_ITER, 30, 0.001)
         self.charuco_corners = []  # Store charuco corners
         self.charuco_ids = []     # Store charuco IDs
