@@ -465,11 +465,11 @@
             </collision>
             
          <visual name="top_surface">
-                <pose>0 0.043 0.089 0.7854 0 0</pose>
+                <pose>0 0.043 0.089 0.7854 0 0</pose> <!-- z is changed from 0.089 to fit the larger marker-->
                 <geometry>
                     <plane>
                     <normal>0 0 1</normal>
-                    <size>0.297 0.210</size>
+                    <size>0.297 0.210</size> <!-- size is an a4 paper -->
                     </plane>
                 </geometry>
                 <material>

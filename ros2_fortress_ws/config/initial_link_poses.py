@@ -65,10 +65,9 @@ CAMERA_LINK_POSE = {
 }
 
 NFold_Center_Offset = {
-    "x": -0.1295,  # m 
-    "y": 0.088,    # m 
-    "z": 0.0,    # m 
-
+    "x": 0.1295,  # m (based on measurements made when testing)
+    "y": -0.088,    # m (based on measurements made when testing)
+    "z": 0.0,    # m (based on measurements made when testing)
 }
 
 CAMERA_FRAME_TRANSFORM = {
