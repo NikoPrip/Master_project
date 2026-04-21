@@ -16,7 +16,7 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description='Merge output.csv and joint_states.csv on matching frame/img_filename')
     parser.add_argument('--folder', type=str,
-                        help='Folder name inside test_videos/ (e.g. Aruco_1_01)')
+                        help='Folder name inside test_data/ (e.g. Aruco_1_01)')
     parser.add_argument('--input', type=str, default='output.csv',
                         help='Input pose CSV filename inside the folder (default: output.csv)')
     parser.add_argument('--output', type=str, default='merged.csv',
@@ -46,7 +46,9 @@ def main():
     joint['frame'] = joint['img_filename'].str.replace('.png', '', regex=False).astype(int)
 
     # Keep only needed columns from joint_states
-    joint_trim = joint[['frame', 'test_time_s', 'img_filename', 'position_rad']]
+    has_lift = 'lift_position_m' in joint.columns
+    lift_cols = ['lift_position_m'] if has_lift else []
+    joint_trim = joint[['frame', 'test_time_s', 'img_filename', 'position_rad'] + lift_cols]
 
     # Inner join on frame — only rows with a match in both files
     merged = pd.merge(output, joint_trim, on='frame', how='inner')
@@ -58,8 +60,8 @@ def main():
     only_in_joint = sorted(joint_frames - output_frames)
 
     # Reorder: joint metadata first, then pose data
-    cols = ['frame', 'test_time_s', 'img_filename', 'position_rad',
-            'time_s', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw']
+    cols = ['frame', 'test_time_s', 'img_filename', 'position_rad'] + lift_cols + \
+           ['time_s', 'tx', 'ty', 'tz', 'qx', 'qy', 'qz', 'qw']
     merged = merged[cols]
 
     out_path = base / args.output
