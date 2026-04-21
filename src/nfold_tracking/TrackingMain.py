@@ -40,8 +40,8 @@ def main():
     calib_path = Path(__file__).parent.parent / 'camera_calibration'
     default_90 = {'aruco': 'Aruco_cam_90.mp4', 'hybrid': 'Hybrid_cam_90.mp4', 'nfold': 'Nfold_cam_90.mp4'}
     default_91 = {'aruco': 'Aruco_cam_91.mp4', 'hybrid': 'Hybrid_cam_91.mp4', 'nfold': 'Nfold_cam_91.mp4'}
-    video_90 = str(base_path / 'test_videos' / (args.video90 or default_90[args.mode]))
-    video_91 = str(base_path / 'test_videos' / (args.video91 or default_91[args.mode]))
+    video_90 = args.video90 if args.video90 else str(base_path / 'test_videos' / default_90[args.mode])
+    video_91 = args.video91 if args.video91 else str(base_path / 'test_videos' / default_91[args.mode])
 
     calib_file = str(calib_path / args.calib / 'calib_files')
 

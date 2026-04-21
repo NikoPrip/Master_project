@@ -36,6 +36,16 @@ MARKER_3D = np.array([
     [ 260.0, -176.0, 0.0],  # Marker 3: 260mm right, 176mm below marker 0
     [ 208.0, -176.0, 0.0],  # Marker 4: 208mm right, 176mm below marker 0
     [ 104.0,    0.0, 0.0],  # Marker 5: 104mm right of marker 0
+    [ 260.0,  -88.0, 0.0],  # Marker 6: 260mm right, 88mm below marker 0
+    [ 104.0, -176.0, 0.0],  # Marker 7: 104mm right, 176mm below marker 0
+    [   0.0,  -44.0, 0.0],  # Marker 8: 44mm below marker 0
+    [ 208.0,    0.0, 0.0],  # Marker 9: 208mm right of marker 0
+    [  52.0, -176.0, 0.0],  # Marker 10: 52mm right, 176mm below marker 0
+    [ 260.0, -132.0, 0.0],  # Marker 11: 260mm right, 132mm below marker 0
+    [ 156.0,    0.0, 0.0],  # Marker 12: 156mm right of marker 0
+    [   0.0,  -88.0, 0.0],  # Marker 13: 88mm below marker 0
+    [ 260.0,  -44.0, 0.0],  # Marker 14: 260mm right, 44mm below marker 0
+    [ 156.0, -176.0, 0.0],  # Marker 15: 156mm right, 176mm below marker 0
 ], dtype=np.float32)
 
 # Number of markers

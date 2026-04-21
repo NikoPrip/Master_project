@@ -17,10 +17,10 @@ import numpy as np
 # ============================================================================
 
 # ArUco marker ID
-ARUCO_ID = 0
+ARUCO_ID = 1
 
 # ArUco marker size (one side of the square marker)
-ARUCO_SIZE = 158  # mm (measured precisely)
+ARUCO_SIZE = 79  # mm (measured precisely)
 
 # ArUco 3D corner positions (centered at origin)
 # Order: Top-Left, Top-Right, Bottom-Right, Bottom-Left

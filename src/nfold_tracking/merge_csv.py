@@ -27,7 +27,7 @@ def parse_args():
 def main():
     args = parse_args()
 
-    base = Path(__file__).parent / 'test_videos' / args.folder
+    base = Path(__file__).parent / 'test_data' / args.folder
 
     joint_path = base / 'joint_states.csv'
     output_path = base / args.input
