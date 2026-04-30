@@ -14,7 +14,9 @@ import numpy as np
 from pathlib import Path
 import contextlib
 import importlib
+from scipy.optimize import linear_sum_assignment
 
+from MarkerPose import MarkerPose
 from MarkerTracker import MarkerTracker
 from PoseKalmanFilter import PoseKalmanFilter
 from rotation_utils import rvec_to_quat, quat_to_rvec, quat_angular_distance
@@ -53,6 +55,7 @@ class HybridPoseTracker:
 
         # Import rectangular object if available (outdoor config)
         self.RECT_CORNERS_3D = getattr(config, 'RECT_CORNERS_3D', None)
+        self.QUALITY_THRESHOLD = getattr(config, 'QUALITY_THRESHOLD', 0.5)
 
         # Setup ArUco detector with subpixel refinement
         aruco_params = cv2.aruco.DetectorParameters()
@@ -97,14 +100,17 @@ class HybridPoseTracker:
 
         for side, path, color in camera_configs:
             data = np.load(str(self.calib_path / f'calib_data_{side}.npz'))
+            cap = cv2.VideoCapture(str(path))
+            fps = cap.get(cv2.CAP_PROP_FPS)
+            dt = 1.0 / fps if fps > 0 else 1/30.0
             cameras.append({
                 'K': data['mtx'],
                 'dist': data['dist'],
                 'tracker': MarkerTracker(order=self.MARKER_ORDER, kernel_size=self.KERNEL_SIZE, scale_factor=0.1),
-                'cap': cv2.VideoCapture(str(path)),
+                'cap': cap,
                 'color': color,
                 'last_pose': None,
-                'kalman': PoseKalmanFilter(dt=1/30.0, process_noise=100.0, measurement_noise=1.0, gate_trans_mm=300.0, gate_rot_deg=30.0),
+                'kalman': PoseKalmanFilter(dt=dt, process_noise=100.0, measurement_noise=1.0, gate_trans_mm=300.0, gate_rot_deg=30.0),
                 'frames_without_match': 0
             })
         return cameras
@@ -135,8 +141,28 @@ class HybridPoseTracker:
 
         return None
 
-    def detect_and_identify_markers(self, gray, tracker, aruco_corners, aruco_ids, last_pose, K):
+    def detect_and_identify_markers(self, gray, tracker, aruco_corners, aruco_ids, last_pose, K,
+                                     frames_without_match=0):
         """Detect and identify nfold markers."""
+        # Determine whether ArUco is providing the expected positions.
+        # When it is, predictions are tight (homography); when coasting on Kalman,
+        # widen the search as prediction confidence decreases with time.
+        aruco_ref_visible = (
+            aruco_corners is not None and aruco_ids is not None and
+            len(np.where(aruco_ids == self.ARUCO_REFERENCE_ID)[0]) > 0
+        )
+        if aruco_ref_visible:
+            search_radius = 30
+        else:
+            # When coasting on Kalman, widen search slightly for vibration/motion.
+            # Cap at 60px — beyond that the masks overlap and cause misidentification.
+            # If too many frames have been missed without ArUco, stop trying to
+            # identify via stale Kalman predictions entirely.
+            if frames_without_match > 10:
+                return []
+            search_radius = min(30 + frames_without_match * 3, 60)
+        match_threshold = search_radius + 10
+
         with open(os.devnull, 'w') as devnull, \
              contextlib.redirect_stderr(devnull), \
              contextlib.redirect_stdout(devnull):
@@ -145,6 +171,43 @@ class HybridPoseTracker:
             else:
                 gray_small = gray
             tracker.locate_marker_init(gray_small)
+
+            # Zero out ArUco region in convolution response before peak detection
+            # so it can't set the reference intensity or suppress real nfold markers
+            if aruco_corners is not None and aruco_ids is not None:
+                ref_idx = np.where(aruco_ids == self.ARUCO_REFERENCE_ID)[0]
+                if len(ref_idx) > 0:
+                    ac = aruco_corners[ref_idx[0]].reshape(4, 2)
+                    if self.PROCESS_SCALE < 1.0:
+                        ac = ac * self.PROCESS_SCALE
+                    margin = 10
+                    ax1 = max(0, int(ac[:, 0].min()) - margin)
+                    ay1 = max(0, int(ac[:, 1].min()) - margin)
+                    ax2 = min(tracker.frame_sum_squared.shape[1], int(ac[:, 0].max()) + margin)
+                    ay2 = min(tracker.frame_sum_squared.shape[0], int(ac[:, 1].max()) + margin)
+                    tracker.frame_sum_squared[ay1:ay2, ax1:ax2] = 0
+
+            expected = self.get_expected_positions(aruco_corners, aruco_ids, last_pose, K)
+
+            # When expected positions are known, zero out all frame_sum_squared regions
+            # that are far from any expected marker position. This prevents strong
+            # non-marker responses elsewhere in the image from dominating
+            # reference_intensity in detect_multiple_markers.
+            if expected:
+                scale = self.PROCESS_SCALE
+                h_s, w_s = tracker.frame_sum_squared.shape
+                sr_s = max(1, int(search_radius * scale))
+                keep_mask = np.zeros((h_s, w_s), dtype=np.float32)
+                for exp_pos in expected.values():
+                    ex_s = int(exp_pos[0] * scale)
+                    ey_s = int(exp_pos[1] * scale)
+                    x1 = max(0, ex_s - sr_s)
+                    x2 = min(w_s, ex_s + sr_s + 1)
+                    y1 = max(0, ey_s - sr_s)
+                    y2 = min(h_s, ey_s + sr_s + 1)
+                    keep_mask[y1:y2, x1:x2] = 1.0
+                tracker.frame_sum_squared *= keep_mask
+
             try:
                 nfold, _, _ = tracker.detect_multiple_markers(gray_small)
                 if self.PROCESS_SCALE < 1.0:
@@ -153,21 +216,36 @@ class HybridPoseTracker:
                 w, h = self.frame_size
                 nfold = [m for m in nfold if self.EDGE_MARGIN <= m.x < w - self.EDGE_MARGIN
                         and self.EDGE_MARGIN <= m.y < h - self.EDGE_MARGIN]
+                # Quality filter only when ArUco is absent — proximity to homography-
+                # projected positions already rejects noise when ArUco is visible.
+                if not aruco_ref_visible:
+                    nfold = [m for m in nfold if m.quality >= self.QUALITY_THRESHOLD]
 
-                expected = self.get_expected_positions(aruco_corners, aruco_ids, last_pose, K)
+                # Remove detections inside the ArUco bounding box
+                if aruco_corners is not None and aruco_ids is not None:
+                    ref_idx = np.where(aruco_ids == self.ARUCO_REFERENCE_ID)[0]
+                    if len(ref_idx) > 0:
+                        ac = aruco_corners[ref_idx[0]].reshape(4, 2)
+                        margin = 10
+                        ax1, ay1 = ac[:, 0].min() - margin, ac[:, 1].min() - margin
+                        ax2, ay2 = ac[:, 0].max() + margin, ac[:, 1].max() + margin
+                        nfold = [m for m in nfold
+                                 if not (ax1 <= m.x <= ax2 and ay1 <= m.y <= ay2)]
 
-                if expected:
-                    identified, used = [], set()
-                    for marker_id, exp_pos in expected.items():
-                        best = min(((i, m, np.linalg.norm([m.x - exp_pos[0], m.y - exp_pos[1]]))
-                                   for i, m in enumerate(nfold) if i not in used),
-                                  key=lambda x: x[2], default=(None, None, 20))
-                        if best[2] < 20 and best[1] is not None:
-                            best[1].number = marker_id
-                            identified.append(best[1])
-                            used.add(best[0])
+                if expected and nfold:
+                    marker_ids   = list(expected.keys())
+                    exp_pos_arr  = np.array([expected[mid] for mid in marker_ids], dtype=np.float64)
+                    det_pos_arr  = np.array([[m.x, m.y] for m in nfold], dtype=np.float64)
+                    cost = np.linalg.norm(
+                        exp_pos_arr[:, None, :] - det_pos_arr[None, :, :], axis=2)
+                    row_ind, col_ind = linear_sum_assignment(cost)
+                    identified = []
+                    for r, c in zip(row_ind, col_ind):
+                        if cost[r, c] < match_threshold:
+                            nfold[c].number = marker_ids[r]
+                            identified.append(nfold[c])
                     return identified
-            except:
+            except Exception:
                 pass
         return []
 
@@ -207,7 +285,6 @@ class HybridPoseTracker:
             criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 20, 1e-6)
             rvec, tvec = cv2.solvePnPRefineLM(obj_pts, img_pts, K, None, rvec, tvec, criteria)
 
-            # OpenCV boundary: projectPoints needs rvec
             proj, _ = cv2.projectPoints(obj_pts, rvec, tvec, K, None)
             error = np.sqrt(np.mean(np.sum((img_pts - proj.reshape(-1, 2))**2, axis=1)))
 
@@ -281,7 +358,8 @@ class HybridPoseTracker:
 
             # Detect and identify nfold markers (use Kalman prediction as fallback)
             identified = self.detect_and_identify_markers(
-                gray, cam['tracker'], aruco_corners, aruco_ids, kalman_pose, cam['K'])
+                gray, cam['tracker'], aruco_corners, aruco_ids, kalman_pose, cam['K'],
+                frames_without_match=cam['frames_without_match'])
 
             # Extract reference ArUco corners for augmented PnP
             aruco_ref_corners = None
@@ -295,14 +373,21 @@ class HybridPoseTracker:
                                                    aruco_img_pts=aruco_ref_corners)
 
             # Reject outliers that diverge too far from the Kalman prediction.
-            # Skip gate during recovery (frames_without_match > 5) to allow self-correction
-            # after bad initialization.
-            if quat is not None and kalman_pose is not None and cam['frames_without_match'] <= 5:
+            # Skip gate when ArUco is visible (identification used homography, not Kalman)
+            # or during recovery (frames_without_match > 30) to allow self-correction.
+            aruco_visible = aruco_ref_corners is not None
+            if quat is not None and kalman_pose is not None and not aruco_visible and cam['frames_without_match'] <= 30:
                 if (quat_angular_distance(quat, pred_quat) > 1.0 or
                         np.linalg.norm(tvec - pred_tvec) > 200.0):
                     quat, tvec, error = None, None, None
 
             if quat is not None:
+                # When ArUco is visible and the new pose is far from the current
+                # Kalman state, force-reset so the inner gate doesn't block recovery.
+                if aruco_visible and cam['kalman'].is_initialized():
+                    _, filt_t = cam['kalman'].get_filtered_pose()
+                    if filt_t is not None and np.linalg.norm(tvec - filt_t) > 500.0:
+                        cam['kalman'].reset()
                 cam['kalman'].update(quat, tvec)
                 cam['frames_without_match'] = 0
                 filt_quat, filt_tvec = cam['kalman'].get_filtered_pose()

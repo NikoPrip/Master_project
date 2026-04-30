@@ -47,10 +47,13 @@ class NfoldPoseTracker:
         self.BOARD_CORNERS_3D = config.BOARD_CORNERS_3D
 
         # Import rectangular object if available (outdoor config)
-        self.RECT_CORNERS_3D = getattr(config, 'RECT_CORNERS_3D', None)
-        self.PROCESS_SCALE = getattr(config, 'PROCESS_SCALE', 1.0)
-        self.DEPTH_RANGE = getattr(config, 'DEPTH_RANGE', (300, 3000))
-        self.MAX_MARKERS = getattr(config, 'MAX_MARKERS', 16)
+        self.RECT_CORNERS_3D    = getattr(config, 'RECT_CORNERS_3D', None)
+        self.PROCESS_SCALE      = getattr(config, 'PROCESS_SCALE', 1.0)
+        self.DEPTH_RANGE        = getattr(config, 'DEPTH_RANGE', (300, 3000))
+        self.MAX_MARKERS        = getattr(config, 'MAX_MARKERS', 16)
+        self.DISPLAY_SCALE      = getattr(config, 'DISPLAY_SCALE', 1.0)
+        self.EDGE_MARGIN        = getattr(config, 'EDGE_MARGIN', 50)
+        self.QUALITY_THRESHOLD  = getattr(config, 'QUALITY_THRESHOLD', 0.5)
 
         # CSV logging
         self.csv_file = None
@@ -72,7 +75,9 @@ class NfoldPoseTracker:
         for cam in self.cameras:
             cam['map1'], cam['map2'] = cv2.initUndistortRectifyMap(
                 cam['K'], cam['dist'], None, cam['K'], frame_size, cv2.CV_32FC1)
-            cam['kalman'] = PoseKalmanFilter(dt=1/30.0, process_noise=100.0, measurement_noise=1.0, gate_trans_mm=300.0, gate_rot_deg=30.0)
+            fps = cam['cap'].get(cv2.CAP_PROP_FPS)
+            dt  = 1.0 / fps if fps > 0 else 1/30.0
+            cam['kalman'] = PoseKalmanFilter(dt=dt, process_noise=100.0, measurement_noise=1.0, gate_trans_mm=300.0, gate_rot_deg=30.0)
             cam['frames_without_match'] = 0
 
     def _setup_cameras(self, video_90_path, video_91_path):
@@ -95,50 +100,55 @@ class NfoldPoseTracker:
         return cameras
 
     def detect_markers(self, gray, tracker):
+        h_full, w_full = gray.shape[:2]
+        if self.PROCESS_SCALE < 1.0:
+            gray_small = cv2.resize(gray, None, fx=self.PROCESS_SCALE, fy=self.PROCESS_SCALE)
+        else:
+            gray_small = gray
         with open(os.devnull, 'w') as devnull, \
              contextlib.redirect_stderr(devnull), \
              contextlib.redirect_stdout(devnull):
-            if self.PROCESS_SCALE < 1.0:
-                gray_small = cv2.resize(gray, None, fx=self.PROCESS_SCALE, fy=self.PROCESS_SCALE)
-            else:
-                gray_small = gray
             tracker.locate_marker_init(gray_small)
             try:
                 markers, _, _ = tracker.detect_multiple_markers(gray_small)
-                markers = markers[:self.MAX_MARKERS]
-                if self.PROCESS_SCALE < 1.0:
-                    inv = 1.0 / self.PROCESS_SCALE
-                    return [(m.x * inv, m.y * inv) for m in markers]
-                return [(m.x, m.y) for m in markers]
             except:
                 return []
+        markers = markers[:self.MAX_MARKERS]
+        if self.PROCESS_SCALE < 1.0:
+            inv = 1.0 / self.PROCESS_SCALE
+            for m in markers:
+                m.x *= inv
+                m.y *= inv
+        # Filter only by edge margin — quality is not reliable without spatial prior
+        in_bounds = [m for m in markers
+                     if self.EDGE_MARGIN <= m.x < w_full - self.EDGE_MARGIN
+                     and self.EDGE_MARGIN <= m.y < h_full - self.EDGE_MARGIN]
+        return [(m.x, m.y) for m in in_bounds]
 
     def get_expected_positions(self, kalman_pose, K):
         if kalman_pose and K is not None:
             quat, tvec = kalman_pose
             if quat is not None:
+                marker_ids = sorted(self.MARKER_3D.keys())
                 proj, _ = cv2.projectPoints(
-                    np.array([self.MARKER_3D[i] for i in sorted(self.MARKER_3D.keys())], dtype=np.float32),
+                    np.array([self.MARKER_3D[mid] for mid in marker_ids], dtype=np.float32),
                     quat_to_rvec(quat), tvec, K, None
                 )
-                return {i: proj[i, 0] for i in range(len(self.MARKER_3D))}
+                return {marker_ids[i]: proj[i, 0] for i in range(len(marker_ids))}
         return None
 
-    def match_with_expected(self, detected_positions, expected_positions, max_distance=30):
-        if not expected_positions:
+    def match_with_expected(self, detected_positions, expected_positions, max_distance=40):
+        if not expected_positions or not detected_positions:
             return None
 
-        identified, used = [], set()
-        for marker_id, exp_pos in expected_positions.items():
-            best = min(
-                ((i, np.linalg.norm([detected_positions[i][0] - exp_pos[0],
-                                    detected_positions[i][1] - exp_pos[1]]))
-                 for i in range(len(detected_positions)) if i not in used),
-                key=lambda x: x[1], default=(None, max_distance + 1)
-            )
-            if best[1] < max_distance and best[0] is not None:
-                identified.append((best[0], marker_id))
-                used.add(best[0])
+        marker_ids  = list(expected_positions.keys())
+        exp_arr     = np.array([expected_positions[mid] for mid in marker_ids], dtype=np.float64)
+        det_arr     = np.array(detected_positions, dtype=np.float64)
+        cost        = np.linalg.norm(exp_arr[:, None, :] - det_arr[None, :, :], axis=2)
+        row_ind, col_ind = linear_sum_assignment(cost)
+
+        identified = [(col_ind[r], marker_ids[r]) for r in range(len(row_ind))
+                      if cost[r, col_ind[r]] < max_distance]
 
         if len(identified) >= 4:
             return identified
@@ -253,7 +263,7 @@ class NfoldPoseTracker:
             if self.RECT_CORNERS_3D is not None:
                 rect_proj = cv2.projectPoints(self.RECT_CORNERS_3D, rvec, tvec, K, None)[0]
                 rect_pts = rect_proj.reshape(-1, 2).astype(int)
-                rect_color = (0, 255, 0)  # Green for target object
+                rect_color = (0, 255, 0)
                 for i in range(4):
                     cv2.line(frame, tuple(rect_pts[i]), tuple(rect_pts[(i+1)%4]), rect_color, 4)
 
@@ -277,7 +287,7 @@ class NfoldPoseTracker:
             kalman_pose = (pred_quat, pred_tvec) if pred_quat is not None else None
 
             if cam['frames_without_match'] > 30:
-                cam['kalman'] = PoseKalmanFilter(dt=1/30.0, process_noise=100.0, measurement_noise=1.0, gate_trans_mm=300.0, gate_rot_deg=30.0)
+                cam['kalman'].reset()
                 kalman_pose = None
 
             matched_indices, marker_ids, pose = [], [], None
@@ -339,7 +349,7 @@ class NfoldPoseTracker:
                 break
 
             display = np.hstack([cam['frame'] for cam in self.cameras])
-            display = cv2.resize(display, None, fx=0.5, fy=0.5)
+            display = cv2.resize(display, None, fx=self.DISPLAY_SCALE, fy=self.DISPLAY_SCALE)
             cv2.imshow('N-fold Tracking', display)
 
             if cv2.waitKey(1) & 0xFF == ord('q'):

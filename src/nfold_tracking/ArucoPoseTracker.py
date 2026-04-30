@@ -84,6 +84,7 @@ class ArucoPoseTracker:
         for cam in self.cameras:
             cam['map1'], cam['map2'] = cv2.initUndistortRectifyMap(
                 cam['K'], cam['dist'], None, cam['K'], self.frame_size, cv2.CV_32FC1)
+            cam['frames_without_match'] = 0
 
     def _setup_cameras(self, video_90_path, video_91_path):
         """Setup camera configurations."""
@@ -199,6 +200,11 @@ class ArucoPoseTracker:
             frame = cv2.remap(frame, cam['map1'], cam['map2'], cv2.INTER_LINEAR)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+            # Reset Kalman if marker has been lost for too long
+            if cam['frames_without_match'] > 30:
+                cam['kalman'].reset()
+                cam['frames_without_match'] = 0
+
             # Kalman predict
             quat_pred, tvec_pred = cam['kalman'].predict()
 
@@ -212,9 +218,14 @@ class ArucoPoseTracker:
             # Kalman update
             if quat_meas is not None and tvec_meas is not None:
                 cam['kalman'].update(quat_meas, tvec_meas)
+                cam['frames_without_match'] = 0
+            else:
+                cam['frames_without_match'] += 1
 
-            # Get filtered pose
-            quat, tvec = cam['kalman'].get_filtered_pose()
+            # Get filtered pose — only use when there is a fresh measurement
+            quat, tvec = (None, None)
+            if quat_meas is not None:
+                quat, tvec = cam['kalman'].get_filtered_pose()
 
             # Log pose to CSV
             if self.csv_writer and quat is not None and tvec is not None:
