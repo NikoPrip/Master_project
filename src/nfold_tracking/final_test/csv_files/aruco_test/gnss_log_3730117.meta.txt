@@ -1,0 +1,7 @@
+video_file=/home/nikolai/Uni/Master_project/src/nfold_tracking/final_test/videos/output.mp4
+gnss_log=/home/nikolai/Uni/Master_project/src/nfold_tracking/final_test/csv_files/gnss_log_3730117.csv
+nmea_host=192.168.150.1
+pipeline_wall_start=1776770194.332289
+gps_utc_wall_offset_s=-1776729600.047691
+pipeline_gps_utc_s=40594.285
+# video frame at T seconds → GPS UTC = pipeline_gps_utc_s + T

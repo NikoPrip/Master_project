@@ -1,0 +1,7 @@
+video_file=/home/nikolai/Uni/Master_project/src/nfold_tracking/final_test/videos/hybrid_dirt.mp4
+gnss_log=/home/nikolai/Uni/Master_project/src/nfold_tracking/final_test/csv_files/gnss_log_3730117_hybrid_dirt.csv
+nmea_host=192.168.150.1
+pipeline_wall_start=1777014451.151904
+gps_utc_wall_offset_s=-1776988800.033987
+pipeline_gps_utc_s=25651.118
+# video frame at T seconds → GPS UTC = pipeline_gps_utc_s + T

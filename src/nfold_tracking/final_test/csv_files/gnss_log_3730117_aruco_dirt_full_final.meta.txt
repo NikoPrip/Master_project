@@ -1,0 +1,7 @@
+video_file=/home/nikolai/Uni/Master_project/src/nfold_tracking/final_test/videos/aruco_dirt_full_final.mp4
+gnss_log=/home/nikolai/Uni/Master_project/src/nfold_tracking/final_test/csv_files/gnss_log_3730117_aruco_dirt_full_final.csv
+nmea_host=192.168.150.1
+pipeline_wall_start=1777011692.039497
+gps_utc_wall_offset_s=-1776988800.038310
+pipeline_gps_utc_s=22892.001
+# video frame at T seconds → GPS UTC = pipeline_gps_utc_s + T
