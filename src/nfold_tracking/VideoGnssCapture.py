@@ -36,7 +36,9 @@ import argparse
 from pathlib import Path
 
 
-_OUTPUT_DIR = Path(__file__).parent / "gnss_video_pair"
+_OUTPUT_DIR  = Path(__file__).parent / "gnss_video_pair"
+_CSV_DIR     = Path(__file__).parent / "final_test" / "csv_files"
+_VIDEO_DIR   = Path(__file__).parent / "final_test" / "videos"
 
 
 # ---------------------------------------------------------------------------
@@ -451,10 +453,14 @@ class VideoGnssCapture:
 def parse_args():
     p = argparse.ArgumentParser(
         description="Synchronised video + GNSS capture via NMEA TCP")
-    p.add_argument("--output-video", default=str(_OUTPUT_DIR / "output.mp4"),
-                   help="Output MP4 file")
-    p.add_argument("--gnss-log",     default=str(_OUTPUT_DIR / "gnss_log.csv"),
-                   help="Output GNSS CSV log")
+    p.add_argument("--name",         default=None,
+                   help="Base name for output files, e.g. 'aruco_1' → "
+                        "videos/aruco_1.mp4 and csv_files/gnss_log_3730117_aruco_1.csv. "
+                        "Overrides --output-video and --gnss-log defaults.")
+    p.add_argument("--output-video", default=None,
+                   help="Output MP4 file (default: videos/<name>.mp4 or videos/output.mp4)")
+    p.add_argument("--gnss-log",     default=None,
+                   help="Output GNSS CSV log (default: csv_files/gnss_log_3730117_<name>.csv)")
     p.add_argument("--no-preview",   action="store_true",
                    help="Disable live video preview")
     p.add_argument("--nmea-host",    default="192.168.150.1",
@@ -466,9 +472,14 @@ def parse_args():
 
 if __name__ == "__main__":
     args = parse_args()
+
+    name = args.name or "output"
+    output_video = args.output_video or str(_VIDEO_DIR   / f"{name}.mp4")
+    gnss_log     = args.gnss_log     or str(_CSV_DIR     / f"gnss_log_3730117_{name}.csv")
+
     VideoGnssCapture(
-        output_video=args.output_video,
-        gnss_log=args.gnss_log,
+        output_video=output_video,
+        gnss_log=gnss_log,
         preview=not args.no_preview,
         nmea_host=args.nmea_host,
         bind_addr=args.bind_addr,

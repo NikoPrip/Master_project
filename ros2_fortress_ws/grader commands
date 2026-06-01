@@ -52,19 +52,14 @@ python3 scripts/record_state_and_camera.py --output-dir "TEST_NAME"
 # make video from images
 python3 scripts/images_to_mp4.py test_data/"TEST NAME"
 
-plot joint state data
+# plot joint state data
 python3 scripts/plot_joint_state.py --csv test_data/"TEST NAME"/joint_states.csv
 
-Kør prips program i nfold tracking mappen:
+# Kør prips program i nfold tracking mappen:
 python3 TrackingMain.py --mode aruco --video90 Aruco_1_01/recording.mp4 --config Simulation_test --calib non_calibration --output test_videos/Aruco_1_01/output.csv
 
-python3 merge_csv.py --folder test_aruco_01 --input output_aruco.csv --output aruco_merged.csv
-
-plot sim vs vision
+# plot sim vs vision
 python3 scripts/plot_camera_vs_gz.py --csv_file test_data/test_new_camera_placement/merged.csv
-
-plot from master_project folder
-python3 ros2_fortress_ws/scripts/plot_camera_vs_gz.py --csv_file src/nfold_tracking/test_data/test_nfold_02/hybrid_merged.csv --is_displaced true
 
 # Kill all Gazebo, ROS2, RViz processes
 pkill -9 -f "gazebo\|ros2\|rviz"

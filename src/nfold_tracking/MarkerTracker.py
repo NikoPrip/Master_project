@@ -209,10 +209,8 @@ class MarkerTracker:
             marker_intensity = self.frame_sum_squared[int(marker.y), int(marker.x)]
             if reference_intensity is None:
                 reference_intensity = marker_intensity
-            #noise to remove false positives
             noise = 1000
-            #if there is no intensity withing marker ref, break
-            if marker_intensity / (reference_intensity + noise) <= 0.25:
+            if marker_intensity / (reference_intensity + noise) <= 0.05:
                 break
             poses.append(marker)
             radius = 3
@@ -220,7 +218,7 @@ class MarkerTracker:
                 for x in range(max(0, int(marker.x) - radius), min(self.frame_sum_squared.shape[1], int(marker.x) + radius)):
                     self.frame_sum_squared[y, x] = 0
         number_of_markers = len(poses)
-    
+
         return poses, number_of_markers, reference_intensity  
 
     def distances_between_markers(self,poses,number_of_markers):

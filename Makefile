@@ -1,7 +1,9 @@
 PYTHON    := python3
 TRACKER   := src/nfold_tracking/TrackingMain.py
-OPTITRACK := $(CURDIR)/src/nfold_tracking/optitrack/videos
-RESULTS   := $(CURDIR)/src/nfold_tracking/optitrack/results
+OPTITRACK     := $(CURDIR)/src/nfold_tracking/optitrack/videos
+RESULTS       := $(CURDIR)/src/nfold_tracking/optitrack/results
+FINAL_VIDEOS  := $(CURDIR)/src/nfold_tracking/final_test/videos
+FINAL_RESULTS := $(CURDIR)/src/nfold_tracking/final_test/results
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 run = $(PYTHON) $(TRACKER) --mode $(1) --calib $(2) --config $(2) --video90 $(3)
@@ -100,12 +102,54 @@ log-all: aruco-optitrack-1-csv aruco-optitrack-2-csv aruco-optitrack-3-csv \
 $(RESULTS):
 	mkdir -p $(RESULTS)
 
+# ── final test ────────────────────────────────────────────────────────────────
+aruco-final:
+	$(PYTHON) $(TRACKER) --mode aruco --calib final_test --config final_test --video90 $(FINAL_VIDEOS)/Aruco_1.mp4
+
+hybrid-final:
+	$(PYTHON) $(TRACKER) --mode hybrid --calib final_test --config final_test --video90 $(FINAL_VIDEOS)/Hybrid_1.mp4
+
+nfold-final:
+	$(PYTHON) $(TRACKER) --mode nfold --calib final_test --config final_test --video90 $(FINAL_VIDEOS)/Nfold_1.mp4
+
+# ── final test CSV ────────────────────────────────────────────────────────────
+aruco-final-csv: | $(FINAL_RESULTS)
+	$(PYTHON) $(TRACKER) --mode aruco --calib final_test --config final_test --video90 $(FINAL_VIDEOS)/$(NAME).mp4 --output $(FINAL_RESULTS)/aruco_$(NAME).csv
+
+hybrid-final-csv: | $(FINAL_RESULTS)
+	$(PYTHON) $(TRACKER) --mode hybrid --calib final_test --config final_test --video90 $(FINAL_VIDEOS)/$(NAME).mp4 --output $(FINAL_RESULTS)/hybrid_$(NAME).csv
+
+nfold-final-csv: | $(FINAL_RESULTS)
+	$(PYTHON) $(TRACKER) --mode nfold --calib final_test --config final_test --video90 $(FINAL_VIDEOS)/$(NAME).mp4 --output $(FINAL_RESULTS)/nfold_$(NAME).csv
+
+log-all-final: aruco-final-csv hybrid-final-csv nfold-final-csv
+
+$(FINAL_RESULTS):
+	mkdir -p $(FINAL_RESULTS)
+
 # ── capture ───────────────────────────────────────────────────────────────────
+# Usage: make capture NAME=aruco_1   (defaults to NAME=output)
+#        make gnss-log NAME=aruco_1  (logs 3730072 GNSS in parallel with capture)
+NAME ?= output
+MODE ?= aruco
+
 capture:
-	$(PYTHON) src/nfold_tracking/VideoGnssCapture.py
+	$(PYTHON) src/nfold_tracking/VideoGnssCapture.py --name $(NAME)
 
 capture-no-preview:
-	$(PYTHON) src/nfold_tracking/VideoGnssCapture.py --no-preview
+	$(PYTHON) src/nfold_tracking/VideoGnssCapture.py --name $(NAME) --no-preview
+
+gnss-log:
+	$(PYTHON) src/gnss/gnss_logger.py --name $(NAME)
+
+# ── alignment & plotting ──────────────────────────────────────────────────────
+# Usage: make align NAME=aruco_1 MODE=aruco
+#        make plot  NAME=aruco_1 MODE=aruco
+align: | $(FINAL_RESULTS)
+	$(PYTHON) src/nfold_tracking/final_test/AlignGNSS.py --name $(NAME) --mode $(MODE)
+
+plot: | $(FINAL_RESULTS)
+	$(PYTHON) src/nfold_tracking/final_test/PlotAlignment.py --name $(NAME) --mode $(MODE)
 
 # ── help ──────────────────────────────────────────────────────────────────────
 help:
@@ -141,9 +185,25 @@ help:
 	@echo "  make nfold-optitrack-3-csv   nfold tracker → results/nfold_3.csv"
 	@echo "  make log-all                 run all 9 recordings and save CSVs"
 	@echo ""
+	@echo "Final test targets:"
+	@echo "  make aruco-final          aruco tracker, final_test calib, Aruco_1.mp4"
+	@echo "  make hybrid-final         hybrid tracker, final_test calib, Hybrid_1.mp4"
+	@echo "  make nfold-final          nfold tracker, final_test calib, Nfold_1.mp4"
+	@echo ""
+	@echo "Final test CSV targets (output to final_test/results/):"
+	@echo "  make aruco-final-csv      aruco tracker  → final_test/results/aruco.csv"
+	@echo "  make hybrid-final-csv     hybrid tracker → final_test/results/hybrid.csv"
+	@echo "  make nfold-final-csv      nfold tracker  → final_test/results/nfold.csv"
+	@echo "  make log-all-final        run all 3 trackers and save CSVs"
+	@echo ""
 	@echo "Capture targets:"
 	@echo "  make capture              video + GNSS capture (with preview)"
 	@echo "  make capture-no-preview   video + GNSS capture (headless)"
+	@echo "  make gnss-log             log 3730072 GNSS → csv_files/gnss_log_3730072_<NAME>.csv"
+	@echo ""
+	@echo "Alignment & plotting (use NAME= and MODE=):"
+	@echo "  make align NAME=aruco_1 MODE=aruco    align tracker CSV with GNSS"
+	@echo "  make plot  NAME=aruco_1 MODE=aruco    plot aligned results"
 
 .PHONY: nfold-outdoor-1 nfold-outdoor-2 nfold-indoor \
         nfold-optitrack-1 nfold-optitrack-2 nfold-optitrack-3 \
@@ -154,4 +214,6 @@ help:
         aruco-optitrack-1-csv aruco-optitrack-2-csv aruco-optitrack-3-csv \
         hybrid-optitrack-1-csv hybrid-optitrack-2-csv hybrid-optitrack-3-csv \
         nfold-optitrack-1-csv nfold-optitrack-2-csv nfold-optitrack-3-csv \
-        log-all capture capture-no-preview help
+        log-all aruco-final hybrid-final nfold-final \
+        aruco-final-csv hybrid-final-csv nfold-final-csv log-all-final \
+        capture capture-no-preview gnss-log align plot help

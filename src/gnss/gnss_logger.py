@@ -30,6 +30,7 @@ import math
 import socket
 import sys
 from datetime import datetime
+from pathlib import Path
 
 
 # ---------------------------------------------------------------------------
@@ -157,12 +158,18 @@ CSV_COLUMNS = [
 # ---------------------------------------------------------------------------
 
 def main():
+    _csv_dir = Path(__file__).parent.parent / 'nfold_tracking' / 'final_test' / 'csv_files'
     parser = argparse.ArgumentParser(description='Log GNSS data from iCA202 to CSV.')
-    parser.add_argument('output', help='Output CSV file path')
-    parser.add_argument('--host', default='192.168.151.1', help='Device IP (default: 192.168.151.1 for iCA202-3730072)')
+    parser.add_argument('output', nargs='?', default=None,
+                        help='Output CSV file path (overrides --name if given)')
+    parser.add_argument('--name', default='output',
+                        help="Session name; output defaults to gnss_log_3730072_<name>.csv "
+                             "(e.g. --name aruco_1 → csv_files/gnss_log_3730072_aruco_1.csv)")
+    parser.add_argument('--host', default='192.168.151.2', help='Device IP (default: 192.168.151.2 for iCA202-3730072)')
     parser.add_argument('--port', type=int, default=5001, help='TCP port (default: 5001)')
     parser.add_argument('--bind-addr', default=None, help='Local IP to bind to (use when two iCA202s are connected)')
     args = parser.parse_args()
+    args.output = args.output or str(_csv_dir / f'gnss_log_3730072_{args.name}.csv')
 
     # Current state — updated incrementally as sentences arrive
     state = {col: '' for col in CSV_COLUMNS}

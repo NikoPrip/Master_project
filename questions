@@ -1,2 +1,5 @@
 - Should Hybrid and Nfold use same algorithms for test or just what works best?
 - Dedicated calibration set for corrected data?
+
+sudo dhclient enx3ce9f7f9e0dd
+

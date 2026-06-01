@@ -25,8 +25,8 @@ def parse_args():
                        default='nfold', help='Tracking mode: aruco, hybrid, or nfold')
     parser.add_argument('--video90', type=str, default=None, help='Path to video files (optional)')
     parser.add_argument('--video91', type=str, default=None, help='Path to video files (optional)')
-    parser.add_argument('--calib', type=str, choices=['indoor', 'outdoor', 'phone', 'Simulation_test', 'sim_cam_80_deg', 'sim_cam_actual_calib'], default='indoor', help='Path to calibration files (optional)')
-    parser.add_argument('--config', type=str, default="indoor", choices=['indoor', 'outdoor', 'optitrack','Simulation_test', 'Simulation_test_x2_marker'], help='Config file path (optional, default: indoor)')
+    parser.add_argument('--calib', type=str, choices=['indoor', 'outdoor', 'phone', 'Simulation_test', 'sim_cam_80_deg', 'sim_cam_actual_calib', 'final_test'], default='indoor', help='Path to calibration files (optional)')
+    parser.add_argument('--config', type=str, default="indoor", choices=['indoor', 'outdoor', 'optitrack', 'Simulation_test', 'final_test'], help='Config file path (optional, default: indoor)')
     parser.add_argument('--output', type=str, default=None, help='Path to output CSV file for pose logging (optional)')
     return parser.parse_args()
 
@@ -46,7 +46,7 @@ def main():
     calib_file = str(calib_path / args.calib / 'calib_files')
 
     try:
-        config_prefix = {'indoor': 'indoor_test', 'outdoor': 'outdoor_test', 'optitrack': 'optitrack', 'Simulation_test': 'Simulation_test', 'Simulation_test_x2_marker': 'Simulation_test_x2_marker'}[args.config]
+        config_prefix = {'indoor': 'indoor_test', 'outdoor': 'outdoor_test', 'optitrack': 'optitrack', 'Simulation_test': 'Simulation_test', 'final_test': 'final_test'}[args.config]
         if args.mode == 'aruco':
             tracker = ArucoPoseTracker(calib_file, video_90, config_module=f'{config_prefix}.aruco_config', csv_path=args.output)
         elif args.mode == 'hybrid':
