@@ -44,6 +44,12 @@ def camera_calibration(camera_calib = False, stereo_calib = False, data = 'indoo
             marker_type=aruco.DICT_4X4_250,
             legacy_pattern=True
         )
+    elif data == 'final':
+        detector_90 = Calibrator(
+            image_dir=path + 'final_test/Images_cam_90',
+            charuco_board_size=(12, 9),
+            marker_type=aruco.DICT_5X5_250
+        )
     
     if camera_calib:
         detector_90.detect_images()
@@ -62,6 +68,8 @@ def camera_calibration(camera_calib = False, stereo_calib = False, data = 'indoo
             detector_90.save_calibration(path + 'phone/calib_files/calib_data_90.npz')
         elif data == 'sim':
             detector_90.save_calibration(path + 'sim/calib_files/calib_data_90.npz')
+        elif data == 'final':
+            detector_90.save_calibration(path + 'final_test/calib_files/calib_data_90.npz')
     if stereo_calib:
         if data == 'indoor':
             data_90 = np.load(path + 'indoor/calib_files/calib_data_90.npz')
@@ -127,6 +135,11 @@ def video_processing(camera_calib = False, stereo_calib = False, data = 'indoor'
             output_dir_91 = path + 'sim/Images_cam_91'
             video_path_90 = path + 'sim/camera_calib_video/input_video_90.mp4'
             output_dir_90 = path + 'sim/Images_cam_90'
+        elif data == 'final':
+            video_path_91 = path + 'final_test/camera_calib_video/input_video_91.mp4'
+            output_dir_91 = path + 'final_test/Images_cam_91'
+            video_path_90 = path + 'final_test/camera_calib_video/input_video_90.mp4'
+            output_dir_90 = path + 'final_test/Images_cam_90'
         
         if data == 'sim':
             processor_90 = VideoProcessor(video_path_90, output_dir_90,
@@ -184,6 +197,6 @@ def video_processing(camera_calib = False, stereo_calib = False, data = 'indoor'
         processor_90.extract_frames()
 
 if __name__ == "__main__":
-    video_processing(camera_calib = True, stereo_calib = False, data = 'sim')
-    camera_calibration(camera_calib = True, stereo_calib = False, data = 'sim')
+    video_processing(camera_calib = True, stereo_calib = False, data = 'final')
+    camera_calibration(camera_calib = True, stereo_calib = False, data = 'final')
 
